@@ -24,16 +24,17 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
     shiftriver_results = []
 
     for flop_cards in flops:
-        static_wr, feature_shifts = run_shift_flop(hand_str, flop_type, trials)
-        shiftflop_results.append((flop_cards, static_wr, feature_shifts))
+        with st.spinner(f"フロップ: {' '.join(flop_cards)} 処理中..."):
+            static_wr, feature_shifts = run_shift_flop(hand_str, flop_cards, trials)
+            shiftflop_results.append((flop_cards, static_wr, feature_shifts))
 
-        top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_cards)
-        shifturn_results.append((flop_cards, top10_turn, bottom10_turn))
+            top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_cards)
+            shifturn_results.append((flop_cards, top10_turn, bottom10_turn))
 
-        for turn_entry in top10_turn[:1]:  # 各フロップで最も影響大のターンだけ選択
-            turn_card = turn_entry["turn_card"]
-            top10_river, bottom10_river = run_shift_river(hand_str, flop_cards, turn_card)
-            shiftriver_results.append((flop_cards, turn_card, top10_river, bottom10_river))
+            for turn_entry in top10_turn[:1]:
+                turn_card = turn_entry["turn_card"]
+                top10_river, bottom10_river = run_shift_river(hand_str, flop_cards, turn_card)
+                shiftriver_results.append((flop_cards, turn_card, top10_river, bottom10_river))
 
     st.success("計算完了 ✅")
 
