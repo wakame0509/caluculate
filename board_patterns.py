@@ -1,7 +1,7 @@
 import eval7
 from turn_generator import convert_rank_to_value
 
-def classify_board_pattern(flop, turn):
+def classify_flop_turn_pattern(flop, turn):
     """
     フロップ＋ターンの4枚ボードに対してパターンを分類する。
     主な分類例：
