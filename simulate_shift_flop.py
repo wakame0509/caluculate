@@ -14,7 +14,6 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
 
     for _ in range(trials):
         flop = list(random.choice(candidate_flops))
-
         used = set([str(c) for c in hole_cards + flop])
         deck_remaining = [c for c in deck if c not in used]
 
@@ -70,3 +69,7 @@ def hand_str_to_cards(hand_str):
         return [eval7.Card(rank1 + suits[0]), eval7.Card(rank2 + suits[1])]
     else:
         return [eval7.Card(rank1 + suits[0]), eval7.Card(rank2 + suits[1])]
+
+# ✅ この関数がapp.pyから呼ばれるエントリーポイント
+def run_shift_flop(hand_str, flop_type, trials=10000):
+    return simulate_shift_flop_montecarlo(hand_str, flop_type, trials)
