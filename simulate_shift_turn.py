@@ -89,3 +89,6 @@ def aggregate_feature_shifts(results):
     }
 
     return avg_shift_by_feature
+# 末尾に追加
+def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
+    return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
