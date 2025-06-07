@@ -65,3 +65,6 @@ def simulate_vs_random(my_hand, flop, turn, iterations=20):
         total += 1
 
     return (wins + ties / 2) / total * 100
+# ファイル末尾に必ず追加
+def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
+    return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
