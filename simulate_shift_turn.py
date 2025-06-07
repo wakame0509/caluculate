@@ -1,9 +1,8 @@
 import eval7
 from preflop_winrates_random import get_static_preflop_winrate
 from turn_generator import generate_turn_cards
-from board_patterns import classify_board_pattern
 from hand_utils import hand_str_to_cards
-
+from board_patterns import classify_flop_turn_pattern
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     """
     指定ハンド＆フロップに対して、すべてのターンカードを考慮して
