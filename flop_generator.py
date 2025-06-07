@@ -13,26 +13,38 @@ def classify_flop(flop):
     suits = [card[1] for card in flop]
     ranks_only = [card[0] for card in flop]
     unique_suits = len(set(suits))
-    high_cards = ['A', 'K', 'Q', 'J', 'T']
-    high_count = sum(1 for r in ranks_only if r in high_cards)
+    rank_vals = sorted([convert_rank_to_value(r) for r in ranks_only])
+    rank_set = set(rank_vals)
 
-    if unique_suits == 3:
-        if high_count >= 2:
-            return "High Card Rainbow"
-        elif high_count == 0:
-            return "Low Card Rainbow"
-        else:
-            return "Mixed Rainbow"
-    elif unique_suits == 2:
-        return "Two Tone"
+    # フロップの分類（7分類）
+    if unique_suits == 1:
+        return "middle_monotone"
+    elif len(set(ranks_only)) < 3:
+        return "paired"
+    elif max(rank_vals) >= 11 and unique_suits == 3:
+        return "high_rainbow"
+    elif rank_vals[2] - rank_vals[0] <= 3 and max(rank_vals) <= 9:
+        return "low_connected"
+    elif unique_suits == 3 and rank_vals[2] - rank_vals[0] >= 6:
+        return "dry"
+    elif unique_suits <= 2 and any(
+        set(range(x, x + 3)).issubset(rank_set) for x in range(2, 12)
+    ):
+        return "wet"
     else:
-        return "Monotone"
+        return "random"
+
+def convert_rank_to_value(rank_char: str) -> int:
+    rank_map = {
+        '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+        '7': 7, '8': 8, '9': 9, 'T': 10,
+        'J': 11, 'Q': 12, 'K': 13, 'A': 14
+    }
+    return rank_map.get(rank_char.upper(), 0)
 
 def generate_flops_by_type(flop_type, count=10):
     all_flops = generate_all_flops()
     matched = [f for f in all_flops if classify_flop(f) == flop_type]
-
     if not matched:
-        raise ValueError(f"❌ 該当するフロップタイプが見つかりません: '{flop_type}'\n利用可能なタイプは: High Card Rainbow, Low Card Rainbow, Mixed Rainbow, Two Tone, Monotone")
-
+        raise ValueError(f"No flops matched type: {flop_type}")
     return random.sample(matched, min(count, len(matched)))
