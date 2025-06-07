@@ -1,8 +1,7 @@
 import eval7
 from preflop_winrates_random import get_static_preflop_winrate
-from extract_features import extract_features_for_flop
-from turn_generator import generate_turns_for_flop
-from board_patterns import classify_flop_turn_pattern
+from turn_generator import generate_turn_cards
+from board_patterns import classify_board_pattern
 from hand_utils import hand_str_to_cards
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
@@ -12,7 +11,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     """
     hole_cards = list(hand_str_to_cards(hand_str))
     static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
-    turn_cards = generate_turns_for_flop(flop_cards, hole_cards)
+    turn_cards = generate_turn_cards(flop_cards, hole_cards)
 
     results = []
 
@@ -20,7 +19,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
         board = flop_cards + [turn]
         winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
         shift = winrate - static_winrate
-        features = classify_flop_turn_pattern(flop_cards, turn)
+        features = classify_board_pattern(flop_cards, turn)
         results.append({
             'turn_card': str(turn),
             'winrate': round(winrate, 1),
@@ -49,9 +48,10 @@ def simulate_vs_random(my_hand, flop, turn, iterations=20):
         deck = eval7.Deck()
         deck.cards = [card for card in deck.cards if str(card) not in [str(c) for c in used_cards]]
         deck.shuffle()
+
         river = deck.peek(1)
         full_board = flop + turn + river
-        opp_hand = deck.peek(3)[1:3]  # 差分確保
+        opp_hand = deck.peek(3)[1:3]
 
         my_full = my_hand + full_board
         opp_full = opp_hand + full_board
