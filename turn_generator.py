@@ -17,6 +17,9 @@ def generate_turn_cards(flop, used_cards=None):
     turn_cards = [card for card in full_deck if card not in used_cards]
     return turn_cards
 
+# 関数名の互換性維持のためのエイリアス
+generate_turns_for_flop = generate_turn_cards
+
 def classify_turn_card(flop, turn):
     """
     ターンカードの特徴を返す（リストで複数可能性あり）:
@@ -37,7 +40,7 @@ def classify_turn_card(flop, turn):
             break
 
     # ストレート完成
-    for i in range(2, 15):
+    for i in range(2, 11):
         seq = set(range(i, i + 5))
         if seq.issubset(set(rank_vals)):
             features.append("straight_complete")
