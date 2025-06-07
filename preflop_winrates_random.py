@@ -45,3 +45,10 @@ preflop_winrates_random = {
     "54o": 33.3, "53o": 31.8, "52o": 31.1,
     "43o": 30.8, "42o": 30.1, "32o": 29.5
 }
+
+def get_static_preflop_winrate(hand_str):
+    """
+    プリフロップ勝率を取得（ランダムハンドに対して）
+    存在しない場合は 50.0 を返す
+    """
+    return preflop_winrates_random.get(hand_str, 50.0)
