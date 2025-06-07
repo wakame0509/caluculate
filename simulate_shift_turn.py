@@ -1,10 +1,11 @@
 import eval7
+import random
 from preflop_winrates_random import get_static_preflop_winrate
 from extract_features import extract_features_for_flop
 from turn_generator import generate_turns_for_flop
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
-from collections import defaultdict
+from flop_generator import generate_flops_by_type
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     """
@@ -12,14 +13,14 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     勝率変動と特徴量を集計し、ランキング化する。
     """
     hole_cards = list(hand_str_to_cards(hand_str))
-    static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
+    static_winrate = simulate_vs_random(hole_cards, list(flop_cards), [], trials_per_turn)
     turn_cards = generate_turns_for_flop(flop_cards, hole_cards)
 
     results = []
 
     for turn in turn_cards:
-        board = flop_cards + [turn]
-        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
+        board = list(flop_cards) + [turn]
+        winrate = simulate_vs_random(hole_cards, list(flop_cards), [turn], trials_per_turn)
         shift = winrate - static_winrate
         features = classify_flop_turn_pattern(flop_cards, turn)
         results.append({
@@ -29,15 +30,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
             'features': features
         })
 
-    # 特徴量別の平均勝率変動を集計
-    avg_feature_shift = aggregate_feature_shifts(results)
-
-    # ランキング
     results_sorted = sorted(results, key=lambda x: x['shift'], reverse=True)
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
-    return top10, bottom10, avg_feature_shift
-
+    return top10, bottom10
 
 def simulate_vs_random(my_hand, flop, turn, iterations=20):
     """
@@ -47,15 +43,15 @@ def simulate_vs_random(my_hand, flop, turn, iterations=20):
     wins = 0
     ties = 0
     total = 0
-    used_cards = my_hand + flop + turn
+    used_cards = my_hand + list(flop) + list(turn)
 
     for _ in range(iterations):
         deck = eval7.Deck()
         deck.cards = [card for card in deck.cards if str(card) not in [str(c) for c in used_cards]]
         deck.shuffle()
         river = deck.peek(1)
-        full_board = flop + turn + river
-        opp_hand = deck.peek(3)[1:3]  # 差分確保
+        full_board = list(flop) + list(turn) + river
+        opp_hand = deck.peek(3)[1:3]
 
         my_full = my_hand + full_board
         opp_full = opp_hand + full_board
@@ -71,24 +67,24 @@ def simulate_vs_random(my_hand, flop, turn, iterations=20):
 
     return (wins + ties / 2) / total * 100
 
-
-def aggregate_feature_shifts(results):
+def run_shift_turn(hand_str, trials_per_turn=20, flop_type="high_rainbow", flop_count=20):
     """
-    特徴量ごとの勝率変動リストから平均を算出する
+    指定ハンドに対して、フロップタイプから複数フロップを生成し、
+    各フロップごとに全ターンカードで勝率変動を調査し、平均化して返す。
     """
-    feature_shifts = defaultdict(list)
+    all_top10 = []
+    all_bottom10 = []
 
-    for item in results:
-        shift = item['shift']
-        for feat in item['features']:
-            feature_shifts[feat].append(shift)
+    flop_list = generate_flops_by_type(flop_type, count=flop_count)
 
-    avg_shift_by_feature = {
-        feat: round(sum(shifts) / len(shifts), 2)
-        for feat, shifts in feature_shifts.items()
-    }
+    for flop in flop_list:
+        flop_cards = [eval7.Card(card) for card in flop]
+        top10, bottom10 = simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
+        all_top10.extend(top10)
+        all_bottom10.extend(bottom10)
 
-    return avg_shift_by_feature
-# 末尾に追加
-def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
-    return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
+    # 勝率変動でソート
+    all_top10 = sorted(all_top10, key=lambda x: x['shift'], reverse=True)[:10]
+    all_bottom10 = sorted(all_bottom10, key=lambda x: x['shift'])[:10]
+
+    return all_top10, all_bottom10
