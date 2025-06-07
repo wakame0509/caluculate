@@ -73,3 +73,5 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=20):
         total += 1
 
     return (wins + ties / 2) / total * 100
+def run_shift_river(hand_str, flop_cards, turn_card, trials_per_river=20):
+    return simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river)
