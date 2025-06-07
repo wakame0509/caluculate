@@ -1,6 +1,5 @@
 import itertools
 import random
-from hand_utils import all_starting_hands
 
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
 suits = ['h', 'd', 'c', 's']
@@ -32,4 +31,8 @@ def classify_flop(flop):
 def generate_flops_by_type(flop_type, count=10):
     all_flops = generate_all_flops()
     matched = [f for f in all_flops if classify_flop(f) == flop_type]
+
+    if not matched:
+        raise ValueError(f"❌ 該当するフロップタイプが見つかりません: '{flop_type}'\n利用可能なタイプは: High Card Rainbow, Low Card Rainbow, Mixed Rainbow, Two Tone, Monotone")
+
     return random.sample(matched, min(count, len(matched)))
