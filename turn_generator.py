@@ -51,18 +51,21 @@ def classify_turn_card(flop, turn):
     if any(count >= 2 for count in rank_counts.values()):
         features.append("paired_board")
 
-    # オーバーカード
+    # オーバーカード（フロップ内の最大ランクより高い）
     flop_ranks = [convert_rank_to_value(c.rank) for c in flop]
     if convert_rank_to_value(turn.rank) > max(flop_ranks):
         features.append("overcard")
 
     return features
 
-def convert_rank_to_value(rank_char: str) -> int:
-    """ランク文字を数値に変換（例: A=14, K=13）"""
+def convert_rank_to_value(rank_char) -> int:
+    """
+    ランク文字を数値に変換（例: A=14, K=13）。
+    数字や int で渡された場合も安全に処理。
+    """
     rank_map = {
         '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
         '7': 7, '8': 8, '9': 9, 'T': 10,
         'J': 11, 'Q': 12, 'K': 13, 'A': 14
     }
-    return rank_map.get(rank_char.upper(), 0)
+    return rank_map.get(str(rank_char).upper(), 0)
