@@ -15,27 +15,28 @@ flop_type = st.selectbox("🃏 フロップタイプを選択", [
     "paired", "wet", "dry", "random"
 ])
 trials = st.selectbox("🧪 モンテカルロ試行回数", [1000, 5000, 10000])
-flop_count = st.selectbox("🃏 使用するフロップの枚数", [10, 20, 30])
+flop_count = st.selectbox("🃏 使用するフロップの枚数", [5, 10, 20, 30])
+
 if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
     with st.spinner("フロップ生成中..."):
-        flops = generate_flops_by_type(flop_type, count=20)
+        flops = generate_flops_by_type(flop_type, count=flop_count)
 
     shiftflop_results = []
     shifturn_results = []
     shiftriver_results = []
 
-    for flop_cards in flops:
+    for idx, flop_cards in enumerate(flops):
         flop_list = list(flop_cards)
         flop_str = ' '.join(flop_list)
 
-        with st.spinner(f"フロップ: {flop_str} 処理中..."):
+        with st.spinner(f"[{idx+1}/{flop_count}] フロップ: {flop_str} 処理中..."):
             static_wr, feature_shifts = run_shift_flop(hand_str, flop_list, trials)
             shiftflop_results.append((flop_list, static_wr, feature_shifts))
 
             top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list, trials)
             shifturn_results.append((flop_list, top10_turn, bottom10_turn))
 
-            for turn_entry in top10_turn[:1]:  # 代表ターン1枚のみ使用
+            for turn_entry in top10_turn[:1]:
                 turn_card = turn_entry["turn_card"]
                 top10_river, bottom10_river = run_shift_river(hand_str, flop_list, turn_card, trials)
                 shiftriver_results.append((flop_list, turn_card, top10_river, bottom10_river))
@@ -67,7 +68,6 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
             for item in bottom10_river:
                 st.write(f"  {item['river_card']} | {item['shift']}% | {item['features']}")
 
-    # ✅ CSV保存機能（すべてのステージを出力）
     if st.button("📥 結果をCSVで保存"):
         csv_rows = []
         for i, (flop_cards, static_wr, feature_shifts) in enumerate(shiftflop_results):
