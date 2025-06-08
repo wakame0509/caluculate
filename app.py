@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from simulate_shift_flop import run_shift_flop
 from simulate_shift_turn import run_shift_turn
 from simulate_shift_river import run_shift_river
@@ -24,19 +25,19 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
     shiftriver_results = []
 
     for flop_cards in flops:
-        flop_list = list(flop_cards)  # tuple → list に変換
+        flop_list = list(flop_cards)
         flop_str = ' '.join(flop_list)
 
         with st.spinner(f"フロップ: {flop_str} 処理中..."):
             static_wr, feature_shifts = run_shift_flop(hand_str, flop_list, trials)
             shiftflop_results.append((flop_list, static_wr, feature_shifts))
 
-            top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list)
+            top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list, trials)
             shifturn_results.append((flop_list, top10_turn, bottom10_turn))
 
-            for turn_entry in top10_turn[:1]:  # 各フロップで最も影響大のターンだけ選択
+            for turn_entry in top10_turn[:1]:  # 代表ターン1枚のみ使用
                 turn_card = turn_entry["turn_card"]
-                top10_river, bottom10_river = run_shift_river(hand_str, flop_list, turn_card)
+                top10_river, bottom10_river = run_shift_river(hand_str, flop_list, turn_card, trials)
                 shiftriver_results.append((flop_list, turn_card, top10_river, bottom10_river))
 
     st.success("計算完了 ✅")
@@ -65,45 +66,43 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
             st.markdown("### 🟠 ShiftRiver: ワースト10")
             for item in bottom10_river:
                 st.write(f"  {item['river_card']} | {item['shift']}% | {item['features']}")
-                import pandas as pd
-from io import StringIO
 
-if st.button("📥 結果をCSVで保存"):
-    csv_rows = []
-
-    for i, (flop_cards, static_wr, feature_shifts) in enumerate(shiftflop_results):
-        flop_str = ' '.join(flop_cards)
-        for feat, delta in feature_shifts.items():
-            csv_rows.append({
-                'Stage': 'ShiftFlop',
-                'Flop': flop_str,
-                'Detail': feat,
-                'Shift': round(delta, 2)
-            })
-
-        top10_turn = shifturn_results[i][1]
-        bottom10_turn = shifturn_results[i][2]
-        for item in top10_turn + bottom10_turn:
-            csv_rows.append({
-                'Stage': 'ShiftTurn',
-                'Flop': flop_str,
-                'Detail': item['turn_card'],
-                'Shift': round(item['shift'], 2),
-                'Features': ', '.join(item['features'])
-            })
-
-        if i < len(shiftriver_results):
-            _, turn_card, top10_river, bottom10_river = shiftriver_results[i]
-            for item in top10_river + bottom10_river:
+    # ✅ CSV保存機能（すべてのステージを出力）
+    if st.button("📥 結果をCSVで保存"):
+        csv_rows = []
+        for i, (flop_cards, static_wr, feature_shifts) in enumerate(shiftflop_results):
+            flop_str = ' '.join(flop_cards)
+            for feat, delta in feature_shifts.items():
                 csv_rows.append({
-                    'Stage': 'ShiftRiver',
+                    'Stage': 'ShiftFlop',
                     'Flop': flop_str,
-                    'Detail': item['river_card'],
-                    'Shift': round(item['shift'], 2),
-                    'Features': ', '.join(item['features']),
-                    'Turn': turn_card
+                    'Detail': feat,
+                    'Shift': round(delta, 2)
                 })
 
-    df = pd.DataFrame(csv_rows)
-    csv = df.to_csv(index=False)
-    st.download_button("📄 CSVファイルをダウンロード", csv, file_name="shift_results.csv", mime="text/csv")
+            top10_turn = shifturn_results[i][1]
+            bottom10_turn = shifturn_results[i][2]
+            for item in top10_turn + bottom10_turn:
+                csv_rows.append({
+                    'Stage': 'ShiftTurn',
+                    'Flop': flop_str,
+                    'Detail': item['turn_card'],
+                    'Shift': round(item['shift'], 2),
+                    'Features': ', '.join(item['features'])
+                })
+
+            if i < len(shiftriver_results):
+                _, turn_card, top10_river, bottom10_river = shiftriver_results[i]
+                for item in top10_river + bottom10_river:
+                    csv_rows.append({
+                        'Stage': 'ShiftRiver',
+                        'Flop': flop_str,
+                        'Turn': turn_card,
+                        'Detail': item['river_card'],
+                        'Shift': round(item['shift'], 2),
+                        'Features': ', '.join(item['features'])
+                    })
+
+        df = pd.DataFrame(csv_rows)
+        csv = df.to_csv(index=False)
+        st.download_button("📄 CSVファイルをダウンロード", csv, file_name="shift_results.csv", mime="text/csv")
