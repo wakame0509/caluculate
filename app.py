@@ -15,7 +15,7 @@ flop_type = st.selectbox("🃏 フロップタイプを選択", [
     "paired", "wet", "dry", "random"
 ])
 trials = st.selectbox("🧪 モンテカルロ試行回数", [1000, 5000, 10000])
-
+flop_count = st.selectbox("🃏 使用するフロップの枚数", [10, 20, 30])
 if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
     with st.spinner("フロップ生成中..."):
         flops = generate_flops_by_type(flop_type, count=20)
