@@ -67,24 +67,29 @@ def simulate_vs_random(my_hand, flop, turn, iterations=20):
 
     return (wins + ties / 2) / total * 100
 
-def run_shift_turn(hand_str, trials_per_turn=20, flop_type="high_rainbow", flop_count=20):
+def run_shift_turn(hand_str, flop_cards_or_type, trials_per_turn=20, flop_count=20):
     """
-    指定ハンドに対して、フロップタイプから複数フロップを生成し、
-    各フロップごとに全ターンカードで勝率変動を調査し、平均化して返す。
+    - flop_cards_or_type が list/tuple ならそのフロップに対して実行
+    - 文字列ならフロップタイプとして複数生成して平均処理
     """
-    all_top10 = []
-    all_bottom10 = []
+    if isinstance(flop_cards_or_type, (list, tuple)):
+        flop_cards = [eval7.Card(card) for card in flop_cards_or_type]
+        return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
 
-    flop_list = generate_flops_by_type(flop_type, count=flop_count)
+    elif isinstance(flop_cards_or_type, str):
+        all_top10 = []
+        all_bottom10 = []
+        flop_list = generate_flops_by_type(flop_cards_or_type, count=flop_count)
 
-    for flop in flop_list:
-        flop_cards = [eval7.Card(card) for card in flop]
-        top10, bottom10 = simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
-        all_top10.extend(top10)
-        all_bottom10.extend(bottom10)
+        for flop in flop_list:
+            flop_cards = [eval7.Card(card) for card in flop]
+            top10, bottom10 = simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
+            all_top10.extend(top10)
+            all_bottom10.extend(bottom10)
 
-    # 勝率変動でソート
-    all_top10 = sorted(all_top10, key=lambda x: x['shift'], reverse=True)[:10]
-    all_bottom10 = sorted(all_bottom10, key=lambda x: x['shift'])[:10]
+        all_top10 = sorted(all_top10, key=lambda x: x['shift'], reverse=True)[:10]
+        all_bottom10 = sorted(all_bottom10, key=lambda x: x['shift'])[:10]
+        return all_top10, all_bottom10
 
-    return all_top10, all_bottom10
+    else:
+        raise ValueError("flop_cards_or_type must be a list of flop cards or a string flop type.")
