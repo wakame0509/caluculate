@@ -1,9 +1,9 @@
 import eval7
 from turn_generator import convert_rank_to_value
 
-def classify_flop_turn_pattern(flop, turn):
+def classify_flop_turn_pattern(flop, turn, river=None):
     """
-    フロップ＋ターンの4枚ボードに対してパターンを分類する。
+    フロップ＋ターン＋（任意でリバー）から成るボードに対してパターンを分類する。
     主な分類例：
     - flush_draw
     - flush_complete
@@ -15,6 +15,9 @@ def classify_flop_turn_pattern(flop, turn):
     - rainbow
     """
     board = flop + [turn]
+    if river is not None:
+        board.append(river)
+
     suits = [card.suit for card in board]
     ranks = [card.rank for card in board]
     rank_vals = sorted([convert_rank_to_value(r) for r in ranks])
@@ -25,17 +28,16 @@ def classify_flop_turn_pattern(flop, turn):
     suit_counts = {s: suits.count(s) for s in set(suits)}
     max_suit_count = max(suit_counts.values())
 
-    if max_suit_count == 4:
+    if max_suit_count == 5:
         features.append("monotone")
-    elif max_suit_count == 3:
+    elif max_suit_count == 4:
         features.append("two_tone")
     else:
         features.append("rainbow")
 
-    # フラッシュ完成 or ドロー
     if max_suit_count >= 4:
         features.append("flush_draw")
-        if max_suit_count == 4:
+        if max_suit_count == 5:
             features.append("flush_complete")
 
     # ストレート完成 or ドロー
