@@ -3,23 +3,25 @@ from extract_features import extract_features_for_flop
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
-def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=20):
+def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=45):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-    turn_card = eval7.Card(str(turn_card))
-    board4 = flop_cards + [turn_card]
 
-    static_winrate = simulate_vs_random(hole_cards, board4, [], trials_per_river)
-    river_candidates = generate_rivers(flop_cards, turn_card, hole_cards)
+    static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
+    turn_candidates = generate_turns(flop_cards, hole_cards)
 
     results = []
-    for river in river_candidates:
-        full_board = board4 + [river]
-        winrate = simulate_vs_random(hole_cards, board4, [river], trials_per_river)
+    for turn in turn_candidates:
+        board4 = flop_cards + [turn]
+        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
         shift = winrate - static_winrate
-        features = classify_flop_turn_pattern(flop_cards, turn_card, river)
+
+        features = classify_flop_turn_pattern(flop_cards, turn)
+        made_hand = detect_made_hand(hole_cards, board4)
+        features.append(f"made_{made_hand[0]}")
+
         results.append({
-            'river_card': str(river),
+            'turn_card': str(turn),
             'winrate': round(winrate, 1),
             'shift': round(shift, 1),
             'features': features
@@ -31,18 +33,18 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
     return top10, bottom10
 
 
-def generate_rivers(flop, turn, hole_cards):
-    used = set(str(c) for c in flop + [turn] + hole_cards)
+def generate_turns(flop, hole_cards):
+    used = set(str(c) for c in flop + hole_cards)
     deck = eval7.Deck()
     return [card for card in deck.cards if str(card) not in used]
 
 
-def simulate_vs_random(my_hand, board4, river_card, iterations=20):
+def simulate_vs_random(my_hand, board3, turn_card, iterations=45):
     my_hand = [eval7.Card(str(c)) for c in my_hand]
-    board4 = [eval7.Card(str(c)) for c in board4]
-    river_card = [eval7.Card(str(c)) for c in river_card]
+    board3 = [eval7.Card(str(c)) for c in board3]
+    turn_card = [eval7.Card(str(c)) for c in turn_card]
 
-    used_cards = my_hand + board4 + river_card
+    used_cards = my_hand + board3 + turn_card
     wins = ties = total = 0
 
     for _ in range(iterations):
@@ -51,8 +53,8 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=20):
         deck.shuffle()
         opp_hand = deck.peek(2)
 
-        my_full = my_hand + board4 + river_card
-        opp_full = opp_hand + board4 + river_card
+        my_full = my_hand + board3 + turn_card
+        opp_full = opp_hand + board3 + turn_card
 
         my_score = eval7.evaluate(my_full)
         opp_score = eval7.evaluate(opp_full)
@@ -66,5 +68,44 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=20):
     return (wins + ties / 2) / total * 100
 
 
-def run_shift_river(hand_str, flop_cards, turn_card, trials_per_river=20):
-    return simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river)
+def detect_made_hand(hole_cards, board_cards):
+    all_cards = hole_cards + board_cards
+    ranks = [card.rank for card in all_cards]
+    suits = [card.suit for card in all_cards]
+    values = sorted([card._rank for card in all_cards], reverse=True)
+
+    rank_counts = {r: ranks.count(r) for r in set(ranks)}
+    suit_counts = {s: suits.count(s) for s in set(suits)}
+    counts = list(rank_counts.values())
+
+    if 4 in counts:
+        return ["quads"]
+    if 3 in counts and 2 in counts:
+        return ["full_house"]
+    if max(suit_counts.values()) >= 5:
+        return ["flush"]
+    if is_straight(values):
+        return ["straight"]
+    if 3 in counts:
+        return ["set"]
+    if counts.count(2) >= 2:
+        return ["two_pair"]
+    if 2 in counts:
+        return ["pair"]
+    return ["high_card"]
+
+
+def is_straight(values):
+    unique_values = sorted(set(values), reverse=True)
+    for i in range(len(unique_values) - 4 + 1):
+        window = unique_values[i:i+5]
+        if len(window) == 5 and window[0] - window[4] == 4:
+            return True
+    # wheel (A-2-3-4-5)
+    if set([14, 2, 3, 4, 5]).issubset(set(values)):
+        return True
+    return False
+
+
+def run_shift_turn(hand_str, flop_cards, trials_per_turn=45):
+    return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
