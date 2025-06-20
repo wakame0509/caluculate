@@ -41,7 +41,6 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     return (wins + ties / 2) / iterations * 100
 
 def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
-    deck = list(eval7.Deck())
     hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
@@ -49,12 +48,12 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     candidate_flops = generate_flops_by_type(flop_type)
 
     for _ in range(trials):
-        flop = list(random.choice(candidate_flops))
+        flop = [eval7.Card(str(c)) for c in random.choice(candidate_flops)]
         used = hole_cards + flop
         used_str = set(str(c) for c in used)
-        deck_remaining = [c for c in deck if str(c) not in used_str]
+        deck = [card for card in eval7.Deck() if str(card) not in used_str]
 
-        opp_hand = random.sample(deck_remaining, 2)
+        opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
         shift = winrate - static_winrate
 
@@ -71,7 +70,7 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     return static_winrate, avg_feature_shift
 
 def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
-    deck = list(eval7.Deck())
+    flop = [eval7.Card(str(c)) for c in flop]  # 文字列→eval7.Card に変換
     hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
@@ -79,9 +78,9 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     for _ in range(trials):
         used = hole_cards + flop
         used_str = set(str(c) for c in used)
-        deck_remaining = [c for c in deck if str(c) not in used_str]
+        deck = [card for card in eval7.Deck() if str(card) not in used_str]
 
-        opp_hand = random.sample(deck_remaining, 2)
+        opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
         shift = winrate - static_winrate
 
