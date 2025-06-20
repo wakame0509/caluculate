@@ -3,6 +3,11 @@ from extract_features import extract_features_for_flop
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
+RANK_TO_INT = {'2': 2, '3': 3, '4': 4, '5': 5,
+               '6': 6, '7': 7, '8': 8, '9': 9,
+               'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+
+
 def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=45):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
@@ -74,7 +79,7 @@ def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
     suits = [card.suit for card in all_cards]
-    values = sorted([card._rank for card in all_cards], reverse=True)
+    values = sorted([RANK_TO_INT[card.rank] for card in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
@@ -103,7 +108,7 @@ def is_straight(values):
         window = unique_values[i:i+5]
         if len(window) == 5 and window[0] - window[4] == 4:
             return True
-    if set([14, 2, 3, 4, 5]).issubset(set(values)):
+    if set([14, 2, 3, 4, 5]).issubset(set(values)):  # wheel
         return True
     return False
 
