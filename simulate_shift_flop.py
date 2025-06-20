@@ -21,12 +21,13 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     ties = 0
 
     for _ in range(iterations):
-        deck = eval7.Deck()
+        deck = list(eval7.Deck())
         used = my_hand + opp_hand + board
-        deck.cards = [card for card in deck.cards if card not in used]
+        used_str = set(str(c) for c in used)
+        deck = [card for card in deck if str(card) not in used_str]
 
-        deck.shuffle()
-        remaining_board = deck.peek(5 - len(board))
+        random.shuffle(deck)
+        remaining_board = deck[:5 - len(board)]
         full_board = board + remaining_board
 
         my_val = eval7.evaluate(my_hand + full_board)
@@ -40,8 +41,8 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     return (wins + ties / 2) / iterations * 100
 
 def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
-    deck = [str(card) for card in eval7.Deck()]
-    hole_cards = list(hand_str_to_cards(hand_str))
+    deck = list(eval7.Deck())
+    hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
 
@@ -49,16 +50,15 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
 
     for _ in range(trials):
         flop = list(random.choice(candidate_flops))
-        used = set([str(c) for c in hole_cards + flop])
-        deck_remaining = [c for c in deck if c not in used]
+        used = hole_cards + flop
+        used_str = set(str(c) for c in used)
+        deck_remaining = [c for c in deck if str(c) not in used_str]
 
         opp_hand = random.sample(deck_remaining, 2)
-        board = flop
-
-        winrate = simulate_vs_random(hole_cards, [eval7.Card(c) for c in opp_hand], [eval7.Card(c) for c in board], iterations=20)
+        winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
         shift = winrate - static_winrate
 
-        features = extract_features_for_flop(board)
+        features = extract_features_for_flop(flop)
         for feat in features:
             if feat not in feature_shifts:
                 feature_shifts[feat] = []
@@ -71,22 +71,21 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     return static_winrate, avg_feature_shift
 
 def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
-    deck = [str(card) for card in eval7.Deck()]
-    hole_cards = list(hand_str_to_cards(hand_str))
+    deck = list(eval7.Deck())
+    hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
 
     for _ in range(trials):
-        used = set([str(c) for c in hole_cards + flop])
-        deck_remaining = [c for c in deck if c not in used]
+        used = hole_cards + flop
+        used_str = set(str(c) for c in used)
+        deck_remaining = [c for c in deck if str(c) not in used_str]
 
         opp_hand = random.sample(deck_remaining, 2)
-        board = flop
-
-        winrate = simulate_vs_random(hole_cards, [eval7.Card(c) for c in opp_hand], [eval7.Card(c) for c in board], iterations=20)
+        winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
         shift = winrate - static_winrate
 
-        features = extract_features_for_flop(board)
+        features = extract_features_for_flop(flop)
         for feat in features:
             if feat not in feature_shifts:
                 feature_shifts[feat] = []
