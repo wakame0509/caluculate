@@ -74,7 +74,7 @@ def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
     suits = [card.suit for card in all_cards]
-    values = sorted([RANK_TO_INT[rank] for rank in ranks], reverse=True)
+    values = sorted([card.rank for card in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
