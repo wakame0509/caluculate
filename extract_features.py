@@ -1,6 +1,11 @@
+import eval7
+
 def extract_features_for_flop(flop: list) -> list:
-    suits = [card.suit for card in flop]          # 修正
-    ranks = [card.rank for card in flop]          # 修正
+    # 万一 str 型で渡ってきた場合に eval7.Card に変換
+    flop = [eval7.Card(c) if isinstance(c, str) else c for c in flop]
+
+    suits = [card.suit for card in flop]
+    ranks = [card.rank for card in flop]
     values = sorted([convert_rank_to_value(r) for r in ranks])
 
     features = []
@@ -46,12 +51,3 @@ def extract_features_for_flop(flop: list) -> list:
         features.append("wet_board")
 
     return features
-
-
-def convert_rank_to_value(rank_char: str) -> int:
-    rank_map = {
-        '2': 2, '3': 3, '4': 4, '5': 5,
-        '6': 6, '7': 7, '8': 8, '9': 9,
-        'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
-    }
-    return rank_map.get(rank_char.upper(), 0)
