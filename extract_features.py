@@ -1,7 +1,20 @@
 import eval7
 
+def convert_rank_to_value(rank_char):
+    """A=14, K=13 ... 2=2 に変換"""
+    rank_map = {
+        'A': 14, 'K': 13, 'Q': 12, 'J': 11,
+        'T': 10, '9': 9, '8': 8, '7': 7,
+        '6': 6, '5': 5, '4': 4, '3': 3, '2': 2
+    }
+    return rank_map.get(rank_char, 0)
+
 def extract_features_for_flop(flop: list) -> list:
-    # 万一 str 型で渡ってきた場合に eval7.Card に変換
+    """
+    フロップから特徴量を抽出する関数。
+    入力は eval7.Card のリストまたは str のリストでも可。
+    """
+    # str が渡ってきたら eval7.Card に変換
     flop = [eval7.Card(c) if isinstance(c, str) else c for c in flop]
 
     suits = [card.suit for card in flop]
@@ -10,7 +23,7 @@ def extract_features_for_flop(flop: list) -> list:
 
     features = []
 
-    # フラッシュ関連（モノボード or 2枚同スート）
+    # フラッシュ関連
     suit_counts = {s: suits.count(s) for s in set(suits)}
     max_suit = max(suit_counts.values())
     if max_suit == 3:
@@ -28,11 +41,11 @@ def extract_features_for_flop(flop: list) -> list:
     elif count_values.count(2) == 2:
         features.append("two_pair")
 
-    # ストレート関連（3枚連続 or ガットショット）
+    # ストレートドロー
     if values[2] - values[0] <= 4 and len(set(values)) == 3:
         features.append("straight_draw_possible")
 
-    # ハイカード（A, K, Q）
+    # ハイカード
     if any(r in ranks for r in ['A', 'K', 'Q']):
         features.append("high_card_present")
 
@@ -40,11 +53,11 @@ def extract_features_for_flop(flop: list) -> list:
     if all(6 <= v <= 10 for v in values):
         features.append("middle_board")
 
-    # ローボード（全部10以下）
+    # ローボード（全て10以下）
     if all(v <= 10 for v in values):
         features.append("low_board")
 
-    # ボードのドライ／ウェット
+    # ドライ／ウェット
     if "monoboard" not in features and "2_flush_draw" not in features and "straight_draw_possible" not in features:
         features.append("dry_board")
     else:
