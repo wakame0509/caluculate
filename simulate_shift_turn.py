@@ -2,10 +2,12 @@ import eval7
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
-RANK_TO_INT = {'2': 2, '3': 3, '4': 4, '5': 5,
-               '6': 6, '7': 7, '8': 8, '9': 9,
-               'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
-
+# ランク文字を整数に変換する辞書
+RANK_TO_INT = {
+    '2': 2, '3': 3, '4': 4, '5': 5,
+    '6': 6, '7': 7, '8': 8, '9': 9,
+    'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+}
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
@@ -35,12 +37,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     bottom10 = results_sorted[-10:]
     return top10, bottom10
 
-
 def generate_turns(flop, hole_cards):
     used = set(str(c) for c in flop + hole_cards)
     deck = eval7.Deck()
     return [card for card in deck.cards if str(card) not in used]
-
 
 def simulate_vs_random(my_hand, flop_cards, turn_card, iterations=20):
     my_hand = [eval7.Card(str(c)) for c in my_hand]
@@ -70,12 +70,11 @@ def simulate_vs_random(my_hand, flop_cards, turn_card, iterations=20):
 
     return (wins + ties / 2) / total * 100
 
-
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
     suits = [card.suit for card in all_cards]
-    values = sorted([RANK_TO_INT[card.rank] for card in all_cards], reverse=True)
+    values = sorted([RANK_TO_INT[rank] for rank in ranks], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
@@ -97,7 +96,6 @@ def detect_made_hand(hole_cards, board_cards):
         return ["pair"]
     return ["high_card"]
 
-
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
     for i in range(len(unique_values) - 4 + 1):
@@ -107,7 +105,6 @@ def is_straight(values):
     if set([14, 2, 3, 4, 5]).issubset(set(values)):  # wheel
         return True
     return False
-
 
 def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
