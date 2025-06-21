@@ -1,25 +1,15 @@
 import eval7
 
-def convert_rank_to_value(rank_char):
-    """A=14, K=13 ... 2=2 に変換"""
-    rank_map = {
-        'A': 14, 'K': 13, 'Q': 12, 'J': 11,
-        'T': 10, '9': 9, '8': 8, '7': 7,
-        '6': 6, '5': 5, '4': 4, '3': 3, '2': 2
-    }
-    return rank_map.get(rank_char, 0)
-
 def extract_features_for_flop(flop: list) -> list:
     """
     フロップから特徴量を抽出する関数。
     入力は eval7.Card のリストまたは str のリストでも可。
     """
-    # str が渡ってきたら eval7.Card に変換
     flop = [eval7.Card(c) if isinstance(c, str) else c for c in flop]
 
     suits = [card.suit for card in flop]
-    ranks = [card.rank for card in flop]
-    values = sorted([convert_rank_to_value(r) for r in ranks])
+    ranks = [card.rank for card in flop]  # これは int です（2〜14）
+    values = sorted(ranks)
 
     features = []
 
@@ -46,7 +36,7 @@ def extract_features_for_flop(flop: list) -> list:
         features.append("straight_draw_possible")
 
     # ハイカード
-    if any(r in ranks for r in ['A', 'K', 'Q']):
+    if any(v in values for v in [14, 13, 12]):  # A, K, Q
         features.append("high_card_present")
 
     # ミドルカードボード
