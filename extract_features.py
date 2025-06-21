@@ -1,6 +1,6 @@
 def extract_features_for_flop(flop: list) -> list:
-    suits = [card[1] for card in flop]
-    ranks = [card[0] for card in flop]
+    suits = [card.suit for card in flop]          # 修正
+    ranks = [card.rank for card in flop]          # 修正
     values = sorted([convert_rank_to_value(r) for r in ranks])
 
     features = []
