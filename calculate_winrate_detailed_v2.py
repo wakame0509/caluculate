@@ -54,10 +54,12 @@ def simulate_shift_turn_with_ranking(hand_str, flop_list, opp_hands, iters=1000)
         for card in used:
             deck.cards.remove(card)
 
+        base_equity = calculate_equity(hero, flop_cards, opp_hands, iters)
+
         for turn in deck:
             board = flop_cards + [turn]
             equity = calculate_equity(hero, board, opp_hands, iters)
-            shift = equity - calculate_equity(hero, flop_cards, opp_hands, iters)
+            shift = round(equity - base_equity, 1)
             features = extract_features_for_turn(board)
             made_hand = detect_made_hand(hero, board)
 
@@ -65,7 +67,7 @@ def simulate_shift_turn_with_ranking(hand_str, flop_list, opp_hands, iters=1000)
                 'turn_card': str(turn),
                 'shift': shift,
                 'features': features,
-                'role': made_hand[0]
+                'role': made_hand[0] if made_hand else '―'
             })
 
     all_turns.sort(key=lambda x: x['shift'], reverse=True)
@@ -91,10 +93,12 @@ def simulate_shift_river_with_ranking(hand_str, flop_list, opp_hands, iters=1000
         for card in used:
             deck.cards.remove(card)
 
+        base_equity = calculate_equity(hero, flop_cards + [turn], opp_hands, iters)
+
         for river in deck:
             board = flop_cards + [turn, river]
             equity = calculate_equity(hero, board, opp_hands, iters)
-            shift = equity - calculate_equity(hero, flop_cards + [turn], opp_hands, iters)
+            shift = round(equity - base_equity, 1)
             features = extract_features_for_river(board)
             made_hand = detect_made_hand(hero, board)
 
@@ -102,7 +106,7 @@ def simulate_shift_river_with_ranking(hand_str, flop_list, opp_hands, iters=1000
                 'river_card': str(river),
                 'shift': shift,
                 'features': features,
-                'role': made_hand[0]
+                'role': made_hand[0] if made_hand else '―'
             })
 
     all_rivers.sort(key=lambda x: x['shift'], reverse=True)
