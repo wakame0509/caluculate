@@ -31,7 +31,8 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
             'river_card': str(river),
             'winrate': round(winrate, 1),
             'shift': round(shift, 1),
-            'features': features
+            'features': features,
+            'hand_rank': made_hand[0]  # ← 役を表示するために追加
         })
 
     results_sorted = sorted(results, key=lambda x: x['shift'], reverse=True)
