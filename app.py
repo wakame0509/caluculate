@@ -40,9 +40,9 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
 
             top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list, trials)
             shiftturn_results.append((flop_list, top10_turn, bottom10_turn))
-
-            for turn_entry in top10_turn[:1]:  # 代表ターン1枚のみ使用
-                turn_card = turn_entry["turn_card"]
+if top10_turn:
+    turn_card = random.choice(top10_turn)["turn_card"]
+            
                 top10_river, bottom10_river = run_shift_river(hand_str, flop_list, turn_card, trials)
                 shiftriver_results.append((flop_list, turn_card, top10_river, bottom10_river))
 
