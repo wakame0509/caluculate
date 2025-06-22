@@ -2,13 +2,6 @@ import eval7
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
-# ランク文字を整数に変換する辞書
-RANK_TO_INT = {
-    '2': 2, '3': 3, '4': 4, '5': 5,
-    '6': 6, '7': 7, '8': 8, '9': 9,
-    'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
-}
-
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
@@ -23,7 +16,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
         shift = winrate - static_winrate
         features = classify_flop_turn_pattern(flop_cards, turn)
         made_hand = detect_made_hand(hole_cards, board4)
-        features.append(f"made_{made_hand[0]}")
+        if made_hand:
+            features.append(f"made_{made_hand[0]}")
+        else:
+            features.append("made_―")
 
         results.append({
             'turn_card': str(turn),
@@ -42,25 +38,22 @@ def generate_turns(flop, hole_cards):
     deck = eval7.Deck()
     return [card for card in deck.cards if str(card) not in used]
 
-def simulate_vs_random(my_hand, flop_cards, turn_card, iterations=20):
+def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
     my_hand = [eval7.Card(str(c)) for c in my_hand]
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-    turn_card = [eval7.Card(str(c)) for c in turn_card]
+    turn_cards = [eval7.Card(str(c)) for c in turn_cards]
 
-    used_cards = my_hand + flop_cards + turn_card
+    used_cards = my_hand + flop_cards + turn_cards
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
         deck.cards = [c for c in deck.cards if str(c) not in [str(uc) for uc in used_cards]]
         deck.shuffle()
-        opp_hand = deck.peek(2)
+        opp_hand = deck.sample(2)  # 修正済み
 
-        my_full = my_hand + flop_cards + turn_card
-        opp_full = opp_hand + flop_cards + turn_card
-
-        my_score = eval7.evaluate(my_full)
-        opp_score = eval7.evaluate(opp_full)
+        my_score = eval7.evaluate(my_hand + flop_cards + turn_cards)
+        opp_score = eval7.evaluate(opp_hand + flop_cards + turn_cards)
 
         if my_score > opp_score:
             wins += 1
