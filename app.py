@@ -39,11 +39,12 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
             static_wr, feature_shifts = run_shift_flop(hand_str, flop_list, trials)
             shiftflop_results.append((flop_list, static_wr, feature_shifts))
 
-            top10_turn, bottom10_turn, all_turns = run_shift_turn(hand_str, flop_list, trials)
+            top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list, trials)
             shiftturn_results.append((flop_list, top10_turn, bottom10_turn))
 
-            if all_turns:
-                random_turn = random.choice(all_turns)["turn_card"]
+            # top10_turn からランダムに1枚選んで ShiftRiver を行う
+            if top10_turn:
+                random_turn = random.choice(top10_turn)["turn_card"]
                 top10_river, bottom10_river = run_shift_river(hand_str, flop_list, random_turn, trials)
                 shiftriver_results.append((flop_list, random_turn, top10_river, bottom10_river))
 
