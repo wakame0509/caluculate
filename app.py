@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import random
 from simulate_shift_flop import run_shift_flop
 from simulate_shift_turn import run_shift_turn
 from simulate_shift_river import run_shift_river
@@ -38,13 +39,13 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
             static_wr, feature_shifts = run_shift_flop(hand_str, flop_list, trials)
             shiftflop_results.append((flop_list, static_wr, feature_shifts))
 
-            top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list, trials)
+            top10_turn, bottom10_turn, all_turns = run_shift_turn(hand_str, flop_list, trials)
             shiftturn_results.append((flop_list, top10_turn, bottom10_turn))
-if top10_turn:
-    turn_card = random.choice(top10_turn)["turn_card"]
-            
-                top10_river, bottom10_river = run_shift_river(hand_str, flop_list, turn_card, trials)
-                shiftriver_results.append((flop_list, turn_card, top10_river, bottom10_river))
+
+            if all_turns:
+                random_turn = random.choice(all_turns)["turn_card"]
+                top10_river, bottom10_river = run_shift_river(hand_str, flop_list, random_turn, trials)
+                shiftriver_results.append((flop_list, random_turn, top10_river, bottom10_river))
 
     st.session_state["shiftflop_results"] = shiftflop_results
     st.session_state["shiftturn_results"] = shiftturn_results
@@ -64,22 +65,22 @@ for i, (flop_cards, static_wr, feature_shifts) in enumerate(st.session_state["sh
     st.markdown("### 🟢 ShiftTurn: トップ10")
     for item in top10_turn:
         role = item.get('role', '―')
-        st.write(f"  {item['turn_card']} | {item['shift']}% | {item['features']} | 役: {role}")
+        st.write(f"  {item['turn_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
     st.markdown("### 🔴 ShiftTurn: ワースト10")
     for item in bottom10_turn:
         role = item.get('role', '―')
-        st.write(f"  {item['turn_card']} | {item['shift']}% | {item['features']} | 役: {role}")
+        st.write(f"  {item['turn_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
 
     if i < len(st.session_state["shiftriver_results"]):
         _, turn_card, top10_river, bottom10_river = st.session_state["shiftriver_results"][i]
         st.markdown(f"### 🟣 ShiftRiver（ターン: {turn_card}）: トップ10")
         for item in top10_river:
             role = item.get('role', '―')
-            st.write(f"  {item['river_card']} | {item['shift']}% | {item['features']} | 役: {role}")
+            st.write(f"  {item['river_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
         st.markdown("### 🟠 ShiftRiver: ワースト10")
         for item in bottom10_river:
             role = item.get('role', '―')
-            st.write(f"  {item['river_card']} | {item['shift']}% | {item['features']} | 役: {role}")
+            st.write(f"  {item['river_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
 
 # ===== CSV保存 =====
 if st.button("📥 結果をCSVで保存"):
