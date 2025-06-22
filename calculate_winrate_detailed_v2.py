@@ -2,6 +2,7 @@ import eval7
 import random
 from extract_features import extract_features_for_flop, extract_features_for_turn, extract_features_for_river
 from preflop_winrate_dict import get_static_preflop_winrate
+from hand_utils import detect_made_hand  # ★ 追加
 
 def calculate_equity(hero, board, opp_hands, iters=1000):
     hero_wins = 0
@@ -84,7 +85,8 @@ def simulate_shift_river_with_ranking(hand_str, flop_list, opp_hands, iters=1000
             equity = calculate_equity(hero, board, opp_hands, iters)
             shift = equity - calculate_equity(hero, flop_cards + [turn], opp_hands, iters)
             features = extract_features_for_river(board)
-            all_rivers.append((str(river), shift, features))
+            made_hand = detect_made_hand(hero, board)  # ★ 役を検出
+            all_rivers.append((str(river), shift, features, made_hand[0]))  # ★ 役も追加
     all_rivers.sort(key=lambda x: x[1], reverse=True)
     top10 = all_rivers[:10]
     worst10 = all_rivers[-10:]
