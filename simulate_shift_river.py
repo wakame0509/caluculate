@@ -3,11 +3,6 @@ from extract_features import extract_features_for_flop
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
-RANK_TO_INT = {'2': 2, '3': 3, '4': 4, '5': 5,
-               '6': 6, '7': 7, '8': 8, '9': 9,
-               'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
-
-
 def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=45):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
@@ -25,14 +20,14 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
 
         features = classify_flop_turn_pattern(flop_cards, turn_card, river)
         made_hand = detect_made_hand(hole_cards, full_board)
-        features.append(f"made_{made_hand[0]}")
+        features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
 
         results.append({
             'river_card': str(river),
             'winrate': round(winrate, 1),
             'shift': round(shift, 1),
             'features': features,
-            'hand_rank': made_hand[0]  # ← 役を表示するために追加
+            'hand_rank': made_hand[0] if made_hand else '―'
         })
 
     results_sorted = sorted(results, key=lambda x: x['shift'], reverse=True)
@@ -51,21 +46,19 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=45):
     my_hand = [eval7.Card(str(c)) for c in my_hand]
     board4 = [eval7.Card(str(c)) for c in board4]
     river_card = [eval7.Card(str(c)) for c in river_card]
+    full_board = board4 + river_card
 
-    used_cards = my_hand + board4 + river_card
+    used_cards = my_hand + full_board
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
         deck.cards = [c for c in deck.cards if str(c) not in [str(uc) for uc in used_cards]]
         deck.shuffle()
-        opp_hand = deck.peek(2)
+        opp_hand = deck.sample(2)
 
-        my_full = my_hand + board4 + river_card
-        opp_full = opp_hand + board4 + river_card
-
-        my_score = eval7.evaluate(my_full)
-        opp_score = eval7.evaluate(opp_full)
+        my_score = eval7.evaluate(my_hand + full_board)
+        opp_score = eval7.evaluate(opp_hand + full_board)
 
         if my_score > opp_score:
             wins += 1
@@ -106,7 +99,7 @@ def detect_made_hand(hole_cards, board_cards):
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
     for i in range(len(unique_values) - 4 + 1):
-        window = unique_values[i:i+5]
+        window = unique_values[i:i + 5]
         if len(window) == 5 and window[0] - window[4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):  # wheel
