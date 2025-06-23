@@ -1,6 +1,10 @@
 import eval7
 
 def get_169_starting_hands():
+    """
+    169通りのスターティングハンドを返す。
+    例: 'AKs', 'KQo', '77' など。
+    """
     ranks = 'AKQJT98765432'
     hands = []
     for i, r1 in enumerate(ranks):
@@ -12,7 +16,16 @@ def get_169_starting_hands():
                 hands.append(f"{r1}{r2}")
     return hands
 
+# ✅ これを追加することで ImportError を回避可能
+all_starting_hands = get_169_starting_hands()
+
+
 def hand_str_to_cards(hand_str):
+    """
+    'AKs' -> [eval7.Card('As'), eval7.Card('Ks')]
+    'QJo' -> [eval7.Card('Qh'), eval7.Card('Jd')]（異スート）
+    '99'  -> [eval7.Card('9h'), eval7.Card('9d')]（異スート）
+    """
     rank1 = hand_str[0]
     rank2 = hand_str[1]
     suited = len(hand_str) == 3 and hand_str[2] == 's'
