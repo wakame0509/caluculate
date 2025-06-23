@@ -6,7 +6,7 @@ def classify_flop_turn_pattern(flop, turn, river=None):
     if river is not None:
         board.append(river)
 
-    suits = [card.suit_char for card in board]  # ← 修正ポイント
+    suits = [str(card)[1] for card in board]  # ← 修正済み（スート文字を取得）
     ranks = [card.rank for card in board]
     rank_vals = sorted([convert_rank_to_value(r) for r in ranks])
 
