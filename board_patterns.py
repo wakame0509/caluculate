@@ -2,23 +2,11 @@ import eval7
 from turn_generator import convert_rank_to_value
 
 def classify_flop_turn_pattern(flop, turn, river=None):
-    """
-    フロップ＋ターン＋（任意でリバー）から成るボードに対してパターンを分類する。
-    主な分類例：
-    - flush_draw
-    - flush_complete
-    - straight_draw
-    - straight_complete
-    - paired_board
-    - monotone
-    - two_tone
-    - rainbow
-    """
     board = flop + [turn]
     if river is not None:
         board.append(river)
 
-    suits = [card.suit for card in board]
+    suits = [card.suit_char for card in board]  # ← 修正ポイント
     ranks = [card.rank for card in board]
     rank_vals = sorted([convert_rank_to_value(r) for r in ranks])
 
