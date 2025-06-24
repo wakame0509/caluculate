@@ -14,7 +14,7 @@ st.title("♠ 統合版 勝率変動分析アプリ（フロップ→ターン�
 mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード"])
 
 hand_str = st.selectbox("🎴 自分のハンドを選択", all_starting_hands)
-trials = st.selectbox("🧪 モンテカルロ試行回数", [1000, 5000, 10000])
+trials = st.selectbox("🧪 モンテカルロ試行回数", [1000, 5000 , 10000, 100000])
 
 if mode == "自動生成モード":
     flop_type = st.selectbox("🃏 フロップタイプを選択", [
