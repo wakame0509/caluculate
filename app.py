@@ -42,7 +42,6 @@ if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
             top10_turn, bottom10_turn = run_shift_turn(hand_str, flop_list, trials)
             shiftturn_results.append((flop_list, top10_turn, bottom10_turn))
 
-            # top10_turn からランダムに1枚選んで ShiftRiver を行う
             if top10_turn:
                 random_turn = random.choice(top10_turn)["turn_card"]
                 top10_river, bottom10_river = run_shift_river(hand_str, flop_list, random_turn, trials)
@@ -61,27 +60,37 @@ for i, (flop_cards, static_wr, feature_shifts) in enumerate(st.session_state["sh
     for feat, delta in sorted(feature_shifts.items(), key=lambda x: abs(x[1]), reverse=True):
         st.write(f"  - {feat}: {delta:.2f}%")
 
+    # ===== ShiftTurn 表示 =====
     top10_turn = st.session_state["shiftturn_results"][i][1]
     bottom10_turn = st.session_state["shiftturn_results"][i][2]
+
     st.markdown("### 🟢 ShiftTurn: トップ10")
     for item in top10_turn:
-        role = item.get('role', '―')
-        st.write(f"  {item['turn_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
+        made = next((f for f in item['features'] if f.startswith("made_")), "made_―").replace("made_", "")
+        feats = [f for f in item['features'] if not f.startswith("made_")]
+        st.write(f"  {item['turn_card']} | {item['shift']:.2f}% | {feats} | 役: {made}")
+
     st.markdown("### 🔴 ShiftTurn: ワースト10")
     for item in bottom10_turn:
-        role = item.get('role', '―')
-        st.write(f"  {item['turn_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
+        made = next((f for f in item['features'] if f.startswith("made_")), "made_―").replace("made_", "")
+        feats = [f for f in item['features'] if not f.startswith("made_")]
+        st.write(f"  {item['turn_card']} | {item['shift']:.2f}% | {feats} | 役: {made}")
 
+    # ===== ShiftRiver 表示 =====
     if i < len(st.session_state["shiftriver_results"]):
         _, turn_card, top10_river, bottom10_river = st.session_state["shiftriver_results"][i]
+
         st.markdown(f"### 🟣 ShiftRiver（ターン: {turn_card}）: トップ10")
         for item in top10_river:
-            role = item.get('role', '―')
-            st.write(f"  {item['river_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
+            made = next((f for f in item['features'] if f.startswith("made_")), "made_―").replace("made_", "")
+            feats = [f for f in item['features'] if not f.startswith("made_")]
+            st.write(f"  {item['river_card']} | {item['shift']:.2f}% | {feats} | 役: {made}")
+
         st.markdown("### 🟠 ShiftRiver: ワースト10")
         for item in bottom10_river:
-            role = item.get('role', '―')
-            st.write(f"  {item['river_card']} | {item['shift']:.2f}% | {item['features']} | 役: {role}")
+            made = next((f for f in item['features'] if f.startswith("made_")), "made_―").replace("made_", "")
+            feats = [f for f in item['features'] if not f.startswith("made_")]
+            st.write(f"  {item['river_card']} | {item['shift']:.2f}% | {feats} | 役: {made}")
 
 # ===== CSV保存 =====
 if st.button("📥 結果をCSVで保存"):
@@ -102,27 +111,31 @@ if st.button("📥 結果をCSVで保存"):
         top10_turn = st.session_state["shiftturn_results"][i][1]
         bottom10_turn = st.session_state["shiftturn_results"][i][2]
         for item in top10_turn + bottom10_turn:
+            made = next((f for f in item['features'] if f.startswith("made_")), "―").replace("made_", "")
+            feats = [f for f in item['features'] if not f.startswith("made_")]
             csv_rows.append({
                 'Stage': 'ShiftTurn',
                 'Flop': flop_str,
                 'Turn': '',
                 'Detail': item['turn_card'],
                 'Shift': round(item['shift'], 2),
-                'Features': ', '.join(item['features']),
-                'Role': item.get('role', '')
+                'Features': ', '.join(feats),
+                'Role': made
             })
 
         if i < len(st.session_state["shiftriver_results"]):
             _, turn_card, top10_river, bottom10_river = st.session_state["shiftriver_results"][i]
             for item in top10_river + bottom10_river:
+                made = next((f for f in item['features'] if f.startswith("made_")), "―").replace("made_", "")
+                feats = [f for f in item['features'] if not f.startswith("made_")]
                 csv_rows.append({
                     'Stage': 'ShiftRiver',
                     'Flop': flop_str,
                     'Turn': turn_card,
                     'Detail': item['river_card'],
                     'Shift': round(item['shift'], 2),
-                    'Features': ', '.join(item['features']),
-                    'Role': item.get('role', '')
+                    'Features': ', '.join(feats),
+                    'Role': made
                 })
 
     df = pd.DataFrame(csv_rows)
