@@ -21,10 +21,12 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
         else:
             features.append("made_―")
 
+        print(f"TURN: {turn}, WINRATE: {winrate:.2f}, SHIFT: {shift:.2f}, FEATURES: {features}")
+
         results.append({
             'turn_card': str(turn),
-            'winrate': round(winrate, 1),
-            'shift': round(shift, 1),
+            'winrate': round(winrate, 2),
+            'shift': round(shift, 2),
             'features': features
         })
 
@@ -44,13 +46,18 @@ def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
     turn_cards = [eval7.Card(str(c)) for c in turn_cards]
 
     used_cards = my_hand + flop_cards + turn_cards
+    used_strs = set(str(card) for card in used_cards)
+
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if str(c) not in [str(uc) for uc in used_cards]]
+        deck.cards = [c for c in deck.cards if str(c) not in used_strs]
         deck.shuffle()
-        opp_hand = deck.sample(2)  # 修正済み
+        opp_hand = deck.sample(2)
+
+        # 念のためチェック（開発用、後で消してOK）
+        assert not any(str(c) in used_strs for c in opp_hand), f"Opponent hand overlap: {opp_hand}"
 
         my_score = eval7.evaluate(my_hand + flop_cards + turn_cards)
         opp_score = eval7.evaluate(opp_hand + flop_cards + turn_cards)
