@@ -1,7 +1,7 @@
 import eval7
-from extract_features import extract_features_for_flop
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
+from turn_generator import convert_rank_to_value
 
 def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=45):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
@@ -49,11 +49,13 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=45):
     full_board = board4 + river_card
 
     used_cards = my_hand + full_board
+    used_strs = set(str(c) for c in used_cards)
+
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if str(c) not in [str(uc) for uc in used_cards]]
+        deck.cards = [c for c in deck.cards if str(c) not in used_strs]
         deck.shuffle()
         opp_hand = deck.sample(2)
 
@@ -73,7 +75,7 @@ def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
     suits = [card.suit for card in all_cards]
-    values = sorted([card.rank for card in all_cards], reverse=True)
+    values = sorted([convert_rank_to_value(card.rank) for card in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
@@ -102,7 +104,7 @@ def is_straight(values):
         window = unique_values[i:i + 5]
         if len(window) == 5 and window[0] - window[4] == 4:
             return True
-    if set([14, 2, 3, 4, 5]).issubset(set(values)):  # wheel
+    if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
 
