@@ -103,7 +103,7 @@ if "manual" in st.session_state:
 
     st.subheader(f"勝率表示（{hand_str}）")
     st.markdown(f"- プリフロップ勝率: **{get_static_preflop_winrate(hand_str):.1f}%**")
-    st.markdown(f"- フロップ勝率（静的）: **{d['static_wr']:.1f}%**")
+    st.markdown(f"- フロップ勝率（モンテカルロ）: **{static_wr:.1f}%**")
 
     st.subheader("ShiftTurn：勝率上昇 Top10")
     for item in d["turn_top"]:
