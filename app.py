@@ -15,7 +15,6 @@ mode = st.radio("モードを選択", ["自動生成モード", "手動選択モ
 hand_str = st.selectbox("🎴 自分のハンドを選択", all_starting_hands)
 trials = st.selectbox("🧪 モンテカルロ試行回数", [1000, 5000, 10000, 100000])
 
-# 自動モード
 if mode == "自動生成モード":
     flop_type = st.selectbox("🃏 フロップタイプを選択", [
         "high_rainbow", "low_connected", "middle_monotone",
@@ -52,7 +51,6 @@ if mode == "自動生成モード":
         st.session_state["auto_river"] = river_results
         st.success("自動計算完了 ✅")
 
-# 手動モード
 elif mode == "手動選択モード":
     flop_input = st.text_input("🃏 フロップ (例: Ah Ks Td)")
     turn_input = st.text_input("🃒 ターンカード（任意）")
@@ -88,94 +86,55 @@ elif mode == "手動選択モード":
     except Exception as e:
         st.error(f"入力エラー: {e}")
 
-# CSV保存
-if st.button("📅 CSV保存"):
+# 表示
+if "manual" in st.session_state:
+    d = st.session_state["manual"]
+    st.subheader("📈 勝率変動特徴量 (ShiftFlop)")
+    for feat, shift in d["flop_feats"].items():
+        st.write(f"{feat}: {shift:+.2f}%")
+
+    st.subheader("🔼 ShiftTurn トップ10")
+    for item in d["turn_top"]:
+        st.write(f"{item['turn_card']}: {item['shift']:+.2f}%, 特徴量: {', '.join(item['features'])}")
+
+    st.subheader("🔽 ShiftTurn ワースト10")
+    for item in d["turn_bottom"]:
+        st.write(f"{item['turn_card']}: {item['shift']:+.2f}%, 特徴量: {', '.join(item['features'])}")
+
+    st.subheader("🔼 ShiftRiver トップ10")
+    for item in d["river_top"]:
+        st.write(f"{item['river_card']}: {item['shift']:+.2f}%, 特徴量: {', '.join(item['features'])}")
+
+    st.subheader("🔽 ShiftRiver ワースト10")
+    for item in d["river_bottom"]:
+        st.write(f"{item['river_card']}: {item['shift']:+.2f}%, 特徴量: {', '.join(item['features'])}")
+
+# CSV保存ボタン
+if st.button("📄 CSVダウンロード"):
     csv_rows = []
-
-    for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
-        flop_str = ' '.join(flop_cards_str)
-        for f, delta in shift_feats.items():
-            csv_rows.append({
-                "Stage": "ShiftFlop",
-                "Flop": flop_str,
-                "Turn": "",
-                "Detail": f,
-                "Shift": round(delta, 2),
-                "Features": "",
-                "Role": ""
-            })
-
-        top10_t = st.session_state["auto_turn"][i][1]
-        bottom10_t = st.session_state["auto_turn"][i][2]
-        for item in top10_t + bottom10_t:
-            made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
-            feats = [f for f in item["features"] if not f.startswith("made_")]
-            csv_rows.append({
-                "Stage": "ShiftTurn",
-                "Flop": flop_str,
-                "Turn": "",
-                "Detail": item["turn_card"],
-                "Shift": round(item["shift"], 2),
-                "Features": ', '.join(feats),
-                "Role": made
-            })
-
-        if i < len(st.session_state["auto_river"]):
-            turn_card = st.session_state["auto_river"][i][1]
-            top10_r = st.session_state["auto_river"][i][2]
-            bottom10_r = st.session_state["auto_river"][i][3]
-            for item in top10_r + bottom10_r:
-                made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
-                feats = [f for f in item["features"] if not f.startswith("made_")]
-                csv_rows.append({
-                    "Stage": "ShiftRiver",
-                    "Flop": flop_str,
-                    "Turn": turn_card,
-                    "Detail": item["river_card"],
-                    "Shift": round(item["shift"], 2),
-                    "Features": ', '.join(feats),
-                    "Role": made
-                })
-
     if "manual" in st.session_state:
         d = st.session_state["manual"]
         flop_str = ' '.join(d["flop_cards_str"])
         for f, delta in d["flop_feats"].items():
-            csv_rows.append({
-                "Stage": "ShiftFlop (Manual)",
-                "Flop": flop_str,
-                "Turn": "",
-                "Detail": f,
-                "Shift": round(delta, 2),
-                "Features": "",
-                "Role": ""
-            })
+            csv_rows.append({"Stage": "ShiftFlop", "Flop": flop_str, "Turn": "", "Detail": f, "Shift": round(delta, 2), "Features": "", "Role": ""})
 
         for item in d["turn_top"] + d["turn_bottom"]:
             made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
             feats = [f for f in item["features"] if not f.startswith("made_")]
             csv_rows.append({
-                "Stage": "ShiftTurn (Manual)",
-                "Flop": flop_str,
-                "Turn": "",
-                "Detail": item["turn_card"],
-                "Shift": round(item["shift"], 2),
-                "Features": ', '.join(feats),
-                "Role": made
+                "Stage": "ShiftTurn", "Flop": flop_str, "Turn": "",
+                "Detail": item["turn_card"], "Shift": round(item["shift"], 2),
+                "Features": ', '.join(feats), "Role": made
             })
 
         for item in d["river_top"] + d["river_bottom"]:
             made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
             feats = [f for f in item["features"] if not f.startswith("made_")]
             csv_rows.append({
-                "Stage": "ShiftRiver (Manual)",
-                "Flop": flop_str,
-                "Turn": d["turn_card"],
-                "Detail": item["river_card"],
-                "Shift": round(item["shift"], 2),
-                "Features": ', '.join(feats),
-                "Role": made
+                "Stage": "ShiftRiver", "Flop": flop_str, "Turn": d["turn_card"],
+                "Detail": item["river_card"], "Shift": round(item["shift"], 2),
+                "Features": ', '.join(feats), "Role": made
             })
 
     df = pd.DataFrame(csv_rows)
-    st.download_button("📄 CSVダウンロード", df.to_csv(index=False), "shift_results.csv", "text/csv")
+    st.download_button("CSVをダウンロード", df.to_csv(index=False), "shift_results.csv", "text/csv")
