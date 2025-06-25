@@ -16,9 +16,7 @@ mode = st.radio("モードを選択", ["自動生成モード", "手動選択モ
 hand_str = st.selectbox("自分のハンドを選択", all_starting_hands)
 trials = st.selectbox("モンテカルロ試行回数", [1000, 5000, 10000, 100000])
 
-# ========================
 # 自動モード
-# ========================
 if mode == "自動生成モード":
     flop_type = st.selectbox("フロップタイプを選択", [
         "high_rainbow", "low_connected", "middle_monotone",
@@ -53,11 +51,9 @@ if mode == "自動生成モード":
         st.session_state["auto_flop"] = flop_results
         st.session_state["auto_turn"] = turn_results
         st.session_state["auto_river"] = river_results
-        st.success("自動計算完了")
+        st.success("自動計算完了 ✅")
 
-# ========================
 # 手動モード
-# ========================
 elif mode == "手動選択モード":
     flop_input = st.text_input("フロップ（例: Ah Ks Td）")
     turn_input = st.text_input("ターンカード（任意）")
@@ -89,50 +85,50 @@ elif mode == "手動選択モード":
                 "river_bottom": bottom10_r
             }
 
-            st.success("手動計算完了")
+            st.success("手動計算完了 ✅")
 
     except Exception as e:
         st.error(f"入力エラー: {e}")
 
-# ========================
-# 表示：手動モード
-# ========================
+# 手動モード表示
 if "manual" in st.session_state:
     d = st.session_state["manual"]
     flop_str = ' '.join(d["flop_cards_str"])
 
     st.subheader(f"勝率表示（{hand_str}）")
     st.markdown(f"- プリフロップ勝率: **{get_static_preflop_winrate(hand_str):.1f}%**")
-    st.markdown(f"- フロップ勝率（モンテカルロ）: **{static_wr:.1f}%**")
+    st.markdown(f"- フロップ勝率（モンテカルロ）: **{d['static_wr']:.1f}%**")
 
     st.subheader("ShiftTurn：勝率上昇 Top10")
     for item in d["turn_top"]:
-        st.markdown(f"{item['turn_card']}：+{item['shift']:.2f}% ({', '.join(item['features'])})")
+        sign = "+" if item["shift"] > 0 else ""
+        st.markdown(f"{item['turn_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
     st.subheader("ShiftTurn：勝率下降 Worst10")
     for item in d["turn_bottom"]:
-        st.markdown(f"{item['turn_card']}：{item['shift']:.2f}% ({', '.join(item['features'])})")
+        sign = "+" if item["shift"] > 0 else ""
+        st.markdown(f"{item['turn_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
     if d["river_top"]:
         st.subheader("ShiftRiver：勝率上昇 Top10")
         for item in d["river_top"]:
-            st.markdown(f"{item['river_card']}：+{item['shift']:.2f}% ({', '.join(item['features'])})")
+            sign = "+" if item["shift"] > 0 else ""
+            st.markdown(f"{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
     if d["river_bottom"]:
         st.subheader("ShiftRiver：勝率下降 Worst10")
         for item in d["river_bottom"]:
-            st.markdown(f"{item['river_card']}：{item['shift']:.2f}% ({', '.join(item['features'])})")
+            sign = "+" if item["shift"] > 0 else ""
+            st.markdown(f"{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
-# ========================
-# 表示：自動モード結果（追加）
-# ========================
+# 自動モード結果表示
 if "auto_flop" in st.session_state:
     st.subheader("自動生成モードの結果表示")
     for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state["auto_flop"]):
         flop_str = ' '.join(flop_cards_str)
         st.markdown(f"【{i+1}】フロップ: **{flop_str}**")
         st.markdown(f"- プリフロップ勝率: **{get_static_preflop_winrate(hand_str):.1f}%**")
-        st.markdown(f"- フロップ勝率（静的）: **{static_wr:.1f}%**")
+        st.markdown(f"- フロップ勝率（モンテカルロ）: **{static_wr:.1f}%**")
 
         st.markdown("- ShiftFlop 特徴:")
         for f, delta in shift_feats.items():
@@ -142,10 +138,12 @@ if "auto_flop" in st.session_state:
         bottom10_t = st.session_state["auto_turn"][i][2]
         st.markdown("- ShiftTurn Top10:")
         for item in top10_t:
-            st.markdown(f"　・{item['turn_card']}：+{item['shift']:.2f}% ({', '.join(item['features'])})")
+            sign = "+" if item["shift"] > 0 else ""
+            st.markdown(f"　・{item['turn_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
         st.markdown("- ShiftTurn Worst10:")
         for item in bottom10_t:
-            st.markdown(f"　・{item['turn_card']}：{item['shift']:.2f}% ({', '.join(item['features'])})")
+            sign = "+" if item["shift"] > 0 else ""
+            st.markdown(f"　・{item['turn_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
         turn_card = st.session_state["auto_river"][i][1]
         top10_r = st.session_state["auto_river"][i][2]
@@ -153,15 +151,15 @@ if "auto_flop" in st.session_state:
         if top10_r:
             st.markdown(f"- ShiftRiver Top10（ターン: {turn_card}）:")
             for item in top10_r:
-                st.markdown(f"　・{item['river_card']}：+{item['shift']:.2f}% ({', '.join(item['features'])})")
+                sign = "+" if item["shift"] > 0 else ""
+                st.markdown(f"　・{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
         if bottom10_r:
             st.markdown(f"- ShiftRiver Worst10（ターン: {turn_card}）:")
             for item in bottom10_r:
-                st.markdown(f"　・{item['river_card']}：{item['shift']:.2f}% ({', '.join(item['features'])})")
+                sign = "+" if item["shift"] > 0 else ""
+                st.markdown(f"　・{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
-# ========================
-# CSV保存
-# ========================
+# CSV保存ボタン（変更なし）
 if st.button("CSV保存"):
     csv_rows = []
 
