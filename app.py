@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import random
+import eval7
 from simulate_shift_flop import run_shift_flop
 from simulate_shift_turn import run_shift_turn
 from simulate_shift_river import run_shift_river
@@ -14,6 +15,7 @@ mode = st.radio("モードを選択", ["自動生成モード", "手動選択モ
 hand_str = st.selectbox("🎴 自分のハンドを選択", all_starting_hands)
 trials = st.selectbox("🧪 モンテカルロ試行回数", [1000, 5000, 10000, 100000])
 
+# 自動モード
 if mode == "自動生成モード":
     flop_type = st.selectbox("🃏 フロップタイプを選択", [
         "high_rainbow", "low_connected", "middle_monotone",
@@ -23,13 +25,15 @@ if mode == "自動生成モード":
 
     if st.button("ShiftFlop ➜ ShiftTurn ➜ ShiftRiver を一括実行"):
         with st.spinner("フロップ生成中..."):
-            flops = generate_flops_by_type(flop_type, count=flop_count)
+            flops_str = generate_flops_by_type(flop_type, count=flop_count)
 
         flop_results, turn_results, river_results = [], [], []
 
-        for idx, flop_cards in enumerate(flops):
-            flop_str = ' '.join(flop_cards)
-            with st.spinner(f"({idx+1}/{len(flops)}) フロップ: {flop_str} 処理中..."):
+        for idx, flop_cards_str in enumerate(flops_str):
+            flop_cards = [eval7.Card(c) for c in flop_cards_str]
+            flop_str = ' '.join(flop_cards_str)
+
+            with st.spinner(f"({idx+1}/{len(flops_str)}) フロップ: {flop_str} 処理中..."):
                 static_wr, shift_feats = run_shift_flop(hand_str, flop_cards, trials)
                 top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
 
@@ -39,43 +43,42 @@ if mode == "自動生成モード":
                 else:
                     random_turn, top10_r, bottom10_r = "", [], []
 
-                flop_results.append((flop_cards, static_wr, shift_feats))
-                turn_results.append((flop_cards, top10_t, bottom10_t))
-                river_results.append((flop_cards, random_turn, top10_r, bottom10_r))
+                flop_results.append((flop_cards_str, static_wr, shift_feats))
+                turn_results.append((flop_cards_str, top10_t, bottom10_t))
+                river_results.append((flop_cards_str, random_turn, top10_r, bottom10_r))
 
         st.session_state["auto_flop"] = flop_results
         st.session_state["auto_turn"] = turn_results
         st.session_state["auto_river"] = river_results
         st.success("自動計算完了 ✅")
 
+# 手動モード
 elif mode == "手動選択モード":
     flop_input = st.text_input("🃏 フロップ (例: Ah Ks Td)")
     turn_input = st.text_input("🃒 ターンカード（任意）")
     river_input = st.text_input("🃓 リバーカード（任意）")
 
     try:
-        flop_cards = flop_input.strip().split()
-        if not isinstance(flop_cards, list) or len(flop_cards) != 3 or not all(isinstance(card, str) for card in flop_cards):
-            st.error("フロップはスペース区切りのカード3枚（例: Ah Ks Td）を入力してください")
+        flop_cards_str = flop_input.strip().split()
+        if len(flop_cards_str) != 3:
+            st.error("フロップは3枚指定してください。例: Ah Ks Td")
         else:
-            flop_cards = [card.strip() for card in flop_cards]
+            flop_cards = [eval7.Card(c) for c in flop_cards_str]
             static_wr, shift_feats = run_shift_flop(hand_str, flop_cards, trials)
             top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
 
             if turn_input:
-                turn_card = turn_input.strip()
-                top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, turn_card, trials)
+                top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, turn_input.strip(), trials)
             else:
-                turn_card = ""
                 top10_r, bottom10_r = [], []
 
             st.session_state["manual"] = {
-                "flop_cards": flop_cards,
+                "flop_cards_str": flop_cards_str,
                 "static_wr": static_wr,
                 "flop_feats": shift_feats,
                 "turn_top": top10_t,
                 "turn_bottom": bottom10_t,
-                "turn_card": turn_card,
+                "turn_card": turn_input.strip(),
                 "river_top": top10_r,
                 "river_bottom": bottom10_r,
             }
@@ -84,11 +87,13 @@ elif mode == "手動選択モード":
 
     except Exception as e:
         st.error(f"入力エラー: {e}")
+
+# CSV保存
 if st.button("📅 CSV保存"):
     csv_rows = []
 
-    for i, (flop_cards, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
-        flop_str = ' '.join(flop_cards)
+    for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
+        flop_str = ' '.join(flop_cards_str)
         for f, delta in shift_feats.items():
             csv_rows.append({
                 "Stage": "ShiftFlop",
@@ -134,7 +139,7 @@ if st.button("📅 CSV保存"):
 
     if "manual" in st.session_state:
         d = st.session_state["manual"]
-        flop_str = ' '.join(d["flop_cards"])
+        flop_str = ' '.join(d["flop_cards_str"])
         for f, delta in d["flop_feats"].items():
             csv_rows.append({
                 "Stage": "ShiftFlop (Manual)",
