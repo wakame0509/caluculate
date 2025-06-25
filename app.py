@@ -54,26 +54,28 @@ elif mode == "手動選択モード":
     river_input = st.text_input("🃓 リバーカード（任意）")
 
     try:
-        flop_cards = list(map(str.strip, flop_input.strip().split()))
-        if len(flop_cards) != 3:
-            st.error("フロップは3枚指定してください。例: Ah Ks Td")
+        flop_cards = flop_input.strip().split()
+        if not isinstance(flop_cards, list) or len(flop_cards) != 3 or not all(isinstance(card, str) for card in flop_cards):
+            st.error("フロップはスペース区切りのカード3枚（例: Ah Ks Td）を入力してください")
         else:
+            flop_cards = [card.strip() for card in flop_cards]
             static_wr, shift_feats = run_shift_flop(hand_str, flop_cards, trials)
             top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
 
             if turn_input:
-                top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, turn_input.strip(), trials)
+                turn_card = turn_input.strip()
+                top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, turn_card, trials)
             else:
+                turn_card = ""
                 top10_r, bottom10_r = [], []
 
-            # 結果をセッションに保存
             st.session_state["manual"] = {
                 "flop_cards": flop_cards,
                 "static_wr": static_wr,
                 "flop_feats": shift_feats,
                 "turn_top": top10_t,
                 "turn_bottom": bottom10_t,
-                "turn_card": turn_input.strip(),
+                "turn_card": turn_card,
                 "river_top": top10_r,
                 "river_bottom": bottom10_r,
             }
@@ -82,7 +84,6 @@ elif mode == "手動選択モード":
 
     except Exception as e:
         st.error(f"入力エラー: {e}")
-
 if st.button("📅 CSV保存"):
     csv_rows = []
 
