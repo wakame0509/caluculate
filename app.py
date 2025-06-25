@@ -54,24 +54,26 @@ elif mode == "手動選択モード":
     river_input = st.text_input("🃓 リバーカード（任意）")
 
     try:
-        flop_cards = list(flop_input.strip().split())
+        flop_cards = list(map(str.strip, flop_input.strip().split()))
         if len(flop_cards) != 3:
             st.error("フロップは3枚指定してください。例: Ah Ks Td")
         else:
             static_wr, shift_feats = run_shift_flop(hand_str, flop_cards, trials)
             top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
+
             if turn_input:
-                top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, turn_input, trials)
+                top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, turn_input.strip(), trials)
             else:
                 top10_r, bottom10_r = [], []
 
+            # 結果をセッションに保存
             st.session_state["manual"] = {
                 "flop_cards": flop_cards,
                 "static_wr": static_wr,
                 "flop_feats": shift_feats,
                 "turn_top": top10_t,
                 "turn_bottom": bottom10_t,
-                "turn_card": turn_input,
+                "turn_card": turn_input.strip(),
                 "river_top": top10_r,
                 "river_bottom": bottom10_r,
             }
