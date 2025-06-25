@@ -44,6 +44,7 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
+    total_winrate = 0
 
     candidate_flops = generate_flops_by_type(flop_type)
 
@@ -55,6 +56,7 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
+        total_winrate += winrate
         shift = winrate - static_winrate
 
         features = extract_features_for_flop(flop)
@@ -67,13 +69,15 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
         feat: round(sum(shifts) / len(shifts), 2)
         for feat, shifts in feature_shifts.items()
     }
-    return static_winrate, avg_feature_shift
+    average_flop_winrate = total_winrate / trials
+    return average_flop_winrate, avg_feature_shift
 
 def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     flop = [eval7.Card(str(c)) for c in flop]  # 文字列→eval7.Card に変換
     hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
+    total_winrate = 0
 
     for _ in range(trials):
         used = hole_cards + flop
@@ -82,6 +86,7 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
+        total_winrate += winrate
         shift = winrate - static_winrate
 
         features = extract_features_for_flop(flop)
@@ -94,12 +99,10 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
         feat: round(sum(shifts) / len(shifts), 2)
         for feat, shifts in feature_shifts.items()
     }
-    return static_winrate, avg_feature_shift
+    average_flop_winrate = total_winrate / trials
+    return average_flop_winrate, avg_feature_shift
 
 def run_shift_flop(hand_str, flop_input, trials=10000):
-    """
-    フロップタイプ or 具体的なフロップカードに応じて処理を分岐。
-    """
     if isinstance(flop_input, str):
         return simulate_shift_flop_montecarlo(hand_str, flop_input, trials)
     elif isinstance(flop_input, list):
