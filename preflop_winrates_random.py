@@ -1,6 +1,6 @@
 # preflop_winrates_random.py
 
-preflop_winrates_random = {
+preflop_winrates = {
     "AA": 85.2, "KK": 82.1, "QQ": 79.3, "JJ": 76.2, "TT": 72.4,
     "99": 69.1, "88": 66.0, "77": 62.8, "66": 59.7, "55": 56.5,
     "44": 53.2, "33": 50.0, "22": 46.8,
