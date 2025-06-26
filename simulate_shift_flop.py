@@ -40,6 +40,54 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
 
     return (wins + ties / 2) / iterations * 100
 
+def detect_made_hand(hole_cards, board_cards):
+    all_cards = hole_cards + board_cards
+    ranks = [card.rank for card in all_cards]
+    suits = [card.suit for card in all_cards]
+    values = sorted([card._value for card in all_cards], reverse=True)
+
+    rank_counts = {r: ranks.count(r) for r in set(ranks)}
+    suit_counts = {s: suits.count(s) for s in set(suits)}
+    counts = list(rank_counts.values())
+
+    # ストレートフラッシュ判定
+    suit_groups = {}
+    for card in all_cards:
+        suit_groups.setdefault(card.suit, []).append(card._value)
+    for suited in suit_groups.values():
+        if len(suited) >= 5:
+            suited = sorted(set(suited), reverse=True)
+            for i in range(len(suited) - 4):
+                if suited[i] - suited[i+4] == 4:
+                    return ["straight_flush"]
+            if set([14, 2, 3, 4, 5]).issubset(set(suited)):
+                return ["straight_flush"]
+
+    if 4 in counts:
+        return ["quads"]
+    if 3 in counts and 2 in counts:
+        return ["full_house"]
+    if max(suit_counts.values()) >= 5:
+        return ["flush"]
+    if is_straight(values):
+        return ["straight"]
+    if 3 in counts:
+        return ["set"]
+    if counts.count(2) >= 2:
+        return ["two_pair"]
+    if 2 in counts:
+        return ["pair"]
+    return ["high_card"]
+
+def is_straight(values):
+    unique = sorted(set(values), reverse=True)
+    for i in range(len(unique) - 4 + 1):
+        if unique[i] - unique[i+4] == 4:
+            return True
+    if set([14, 2, 3, 4, 5]).issubset(set(values)):
+        return True
+    return False
+
 def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
@@ -60,6 +108,9 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
         shift = winrate - static_winrate
 
         features = extract_features_for_flop(flop)
+        made_hand = detect_made_hand(hole_cards, flop)
+        features.append(f"made_{made_hand[0]}")
+
         for feat in features:
             if feat not in feature_shifts:
                 feature_shifts[feat] = []
@@ -73,7 +124,7 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     return average_flop_winrate, avg_feature_shift
 
 def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
-    flop = [eval7.Card(str(c)) for c in flop]  # 文字列→eval7.Card に変換
+    flop = [eval7.Card(str(c)) for c in flop]
     hole_cards = hand_str_to_cards(hand_str)
     static_winrate = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
@@ -90,6 +141,9 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
         shift = winrate - static_winrate
 
         features = extract_features_for_flop(flop)
+        made_hand = detect_made_hand(hole_cards, flop)
+        features.append(f"made_{made_hand[0]}")
+
         for feat in features:
             if feat not in feature_shifts:
                 feature_shifts[feat] = []
