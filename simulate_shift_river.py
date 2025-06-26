@@ -81,6 +81,11 @@ def detect_made_hand(hole_cards, board_cards):
     suit_counts = {s: suits.count(s) for s in set(suits)}
     counts = list(rank_counts.values())
 
+for suit in suit_counts:
+        suited_cards = [card for card in all_cards if card.suit == suit]
+        suited_values = sorted(set([convert_rank_to_value(card.rank) for card in suited_cards]), reverse=True)
+        if is_straight(suited_values):
+            return ["straight_flush"]
     if 4 in counts:
         return ["quads"]
     if 3 in counts and 2 in counts:
