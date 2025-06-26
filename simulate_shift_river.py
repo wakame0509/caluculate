@@ -35,12 +35,10 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
     bottom10 = results_sorted[-10:]
     return top10, bottom10
 
-
 def generate_rivers(board4, hole_cards):
     used = set(str(c) for c in board4 + hole_cards)
     deck = eval7.Deck()
     return [card for card in deck.cards if str(card) not in used]
-
 
 def simulate_vs_random(my_hand, board4, river_card, iterations=45):
     my_hand = [eval7.Card(str(c)) for c in my_hand]
@@ -70,7 +68,6 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=45):
 
     return (wins + ties / 2) / total * 100
 
-
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
@@ -81,11 +78,13 @@ def detect_made_hand(hole_cards, board_cards):
     suit_counts = {s: suits.count(s) for s in set(suits)}
     counts = list(rank_counts.values())
 
-for suit in suit_counts:
+    # ストレートフラッシュ判定
+    for suit in suit_counts:
         suited_cards = [card for card in all_cards if card.suit == suit]
         suited_values = sorted(set([convert_rank_to_value(card.rank) for card in suited_cards]), reverse=True)
         if is_straight(suited_values):
             return ["straight_flush"]
+
     if 4 in counts:
         return ["quads"]
     if 3 in counts and 2 in counts:
@@ -102,7 +101,6 @@ for suit in suit_counts:
         return ["pair"]
     return ["high_card"]
 
-
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
     for i in range(len(unique_values) - 4 + 1):
@@ -112,7 +110,6 @@ def is_straight(values):
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
-
 
 def run_shift_river(hand_str, flop_cards, turn_card, trials_per_river=45):
     return simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river)
