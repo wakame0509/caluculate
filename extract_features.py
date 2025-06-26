@@ -2,7 +2,7 @@ import eval7
 
 def extract_features_for_flop(flop: list) -> list:
     """
-    フロップから特徴量を抽出する関数。
+    フロップまたは任意のボードから特徴量を抽出する関数。
     入力は eval7.Card のリストまたは str のリストでも可。
     """
     flop = [eval7.Card(c) if isinstance(c, str) else c for c in flop]
@@ -13,7 +13,17 @@ def extract_features_for_flop(flop: list) -> list:
 
     features = []
 
-    # フラッシュ関連
+    # ✅ ストレートフラッシュ・フラッシュ・ストレート完成チェック（5枚時のみ意味あり）
+    if len(flop) == 5:
+        hand_value = eval7.evaluate(flop)
+        if hand_value >= eval7.HandType.STRAIGHT_FLUSH:
+            features.append("made_straight_flush")
+        elif hand_value >= eval7.HandType.FLUSH:
+            features.append("made_flush")
+        elif hand_value >= eval7.HandType.STRAIGHT:
+            features.append("made_straight")
+
+    # フラッシュ関連（ドロー系）
     suit_counts = {s: suits.count(s) for s in set(suits)}
     max_suit = max(suit_counts.values())
     if max_suit == 3:
