@@ -1,6 +1,14 @@
 import eval7
+import pandas as pd
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
+
+def convert_rank_to_value(rank):
+    """ランク（'A', 'K', 'Q', ...）を数値に変換"""
+    rank_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+                 '7': 7, '8': 8, '9': 9, 'T': 10,
+                 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+    return rank_dict[rank]
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
@@ -16,12 +24,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
         shift = winrate - static_winrate
         features = classify_flop_turn_pattern(flop_cards, turn)
         made_hand = detect_made_hand(hole_cards, board4)
-        if made_hand:
-            features.append(f"made_{made_hand[0]}")
-        else:
-            features.append("made_―")
-
-        print(f"TURN: {turn}, WINRATE: {winrate:.2f}, SHIFT: {shift:.2f}, FEATURES: {features}")
+        features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
 
         results.append({
             'turn_card': str(turn),
@@ -30,7 +33,13 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
             'features': features
         })
 
-    results_sorted = sorted(results, key=lambda x: x['shift'], reverse=True)
+    # shift の降順で保存
+    df = pd.DataFrame(results)
+    df_sorted = df.sort_values(by='shift', ascending=False)
+    df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
+
+    # トップ・ボトム10を返す（任意の使い道に備えて）
+    results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return top10, bottom10
@@ -56,9 +65,6 @@ def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
         deck.shuffle()
         opp_hand = deck.sample(2)
 
-        # 念のためチェック（開発用、後で消してOK）
-        assert not any(str(c) in used_strs for c in opp_hand), f"Opponent hand overlap: {opp_hand}"
-
         my_score = eval7.evaluate(my_hand + flop_cards + turn_cards)
         opp_score = eval7.evaluate(opp_hand + flop_cards + turn_cards)
 
@@ -74,7 +80,7 @@ def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
     suits = [card.suit for card in all_cards]
-    values = sorted([card.rank for card in all_cards], reverse=True)
+    values = sorted([convert_rank_to_value(card.rank) for card in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
@@ -108,7 +114,7 @@ def is_straight(values):
         window = unique_values[i:i+5]
         if len(window) == 5 and window[0] - window[4] == 4:
             return True
-    if set([14, 2, 3, 4, 5]).issubset(set(values)):  # wheel
+    if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
 
