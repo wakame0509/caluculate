@@ -1,4 +1,5 @@
 import eval7
+import pandas as pd
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 from turn_generator import convert_rank_to_value
@@ -30,7 +31,12 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
             'hand_rank': made_hand[0] if made_hand else '―'
         })
 
-    results_sorted = sorted(results, key=lambda x: x['shift'], reverse=True)
+    df = pd.DataFrame(results)
+    df_sorted = df.sort_values(by='shift', ascending=False)
+    filename = f'results_river_{hand_str}_{str(turn_card)}.csv'
+    df_sorted.to_csv(filename, index=False)
+
+    results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return top10, bottom10
