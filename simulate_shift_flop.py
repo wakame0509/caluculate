@@ -4,6 +4,14 @@ from preflop_winrates_random import get_static_preflop_winrate
 from extract_features import extract_features_for_flop
 from flop_generator import generate_flops_by_type
 
+def convert_rank_to_value(rank):
+    rank_map = {
+        '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+        '7': 7, '8': 8, '9': 9, 'T': 10,
+        'J': 11, 'Q': 12, 'K': 13, 'A': 14
+    }
+    return rank_map[str(rank)]
+
 def hand_str_to_cards(hand_str):
     rank1, rank2 = hand_str[0], hand_str[1]
     suited = hand_str[2:] == 's'
@@ -44,7 +52,7 @@ def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
     suits = [card.suit for card in all_cards]
-    values = sorted([card._value for card in all_cards], reverse=True)
+    values = sorted([convert_rank_to_value(card.rank) for card in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
@@ -53,14 +61,16 @@ def detect_made_hand(hole_cards, board_cards):
     # ストレートフラッシュ判定
     suit_groups = {}
     for card in all_cards:
-        suit_groups.setdefault(card.suit, []).append(card._value)
-    for suited in suit_groups.values():
-        if len(suited) >= 5:
-            suited = sorted(set(suited), reverse=True)
-            for i in range(len(suited) - 4):
-                if suited[i] - suited[i+4] == 4:
+        value = convert_rank_to_value(card.rank)
+        suit_groups.setdefault(card.suit, []).append(value)
+
+    for suited_values in suit_groups.values():
+        if len(suited_values) >= 5:
+            suited_values = sorted(set(suited_values), reverse=True)
+            for i in range(len(suited_values) - 4):
+                if suited_values[i] - suited_values[i+4] == 4:
                     return ["straight_flush"]
-            if set([14, 2, 3, 4, 5]).issubset(set(suited)):
+            if set([14, 2, 3, 4, 5]).issubset(set(suited_values)):
                 return ["straight_flush"]
 
     if 4 in counts:
@@ -82,7 +92,7 @@ def detect_made_hand(hole_cards, board_cards):
 def is_straight(values):
     unique = sorted(set(values), reverse=True)
     for i in range(len(unique) - 4 + 1):
-        if unique[i] - unique[i+4] == 4:
+        if unique[i] - unique[i + 4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
