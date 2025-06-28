@@ -12,7 +12,7 @@ from generate_preflop_winrates import calculate_preflop_winrates
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（自動・手動切替＋CSV保存）")
 
-mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード" "プリフロップ勝率生成"])
+mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード", "プリフロップ勝率生成"])
 hand_str = st.selectbox("自分のハンドを選択", all_starting_hands)
 trials = st.selectbox("モンテカルロ試行回数", [1000, 5000, 10000, 100000])
 if mode == "プリフロップ勝率生成":
