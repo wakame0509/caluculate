@@ -182,7 +182,7 @@ if "auto_flop" in st.session_state:
                 sign = "+" if item["shift"] > 0 else ""
                 st.markdown(f"　・{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
-# CSV保存ボタン（変更なし）
+# CSV保存ボタン（修正版：全件出力）
 if st.button("CSV保存"):
     csv_rows = []
 
@@ -199,9 +199,13 @@ if st.button("CSV保存"):
                 "Role": ""
             })
 
-        top10_t = st.session_state["auto_turn"][i][1]
-        bottom10_t = st.session_state["auto_turn"][i][2]
-        for item in top10_t + bottom10_t:
+        # ShiftTurn 全件出力（Top10/Bottom10だけでなく）
+        all_turn_items = st.session_state["auto_turn"][i][1] + st.session_state["auto_turn"][i][2]
+        seen_turn_cards = set()
+        for item in all_turn_items:
+            if item["turn_card"] in seen_turn_cards:
+                continue  # 重複回避
+            seen_turn_cards.add(item["turn_card"])
             made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
             feats = [f for f in item["features"] if not f.startswith("made_")]
             csv_rows.append({
@@ -214,11 +218,15 @@ if st.button("CSV保存"):
                 "Role": made
             })
 
+        # ShiftRiver 全件出力
         if i < len(st.session_state["auto_river"]):
             turn_card = st.session_state["auto_river"][i][1]
-            top10_r = st.session_state["auto_river"][i][2]
-            bottom10_r = st.session_state["auto_river"][i][3]
-            for item in top10_r + bottom10_r:
+            all_river_items = st.session_state["auto_river"][i][2] + st.session_state["auto_river"][i][3]
+            seen_river_cards = set()
+            for item in all_river_items:
+                if item["river_card"] in seen_river_cards:
+                    continue  # 重複回避
+                seen_river_cards.add(item["river_card"])
                 made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
                 feats = [f for f in item["features"] if not f.startswith("made_")]
                 csv_rows.append({
@@ -231,6 +239,7 @@ if st.button("CSV保存"):
                     "Role": made
                 })
 
+    # 手動モードの出力（こちらはTop10/Bottom10のみ）
     if "manual" in st.session_state:
         d = st.session_state["manual"]
         flop_str = ' '.join(d["flop_cards_str"])
@@ -272,4 +281,5 @@ if st.button("CSV保存"):
             })
 
     df = pd.DataFrame(csv_rows)
+    df.sort_values(by=["Stage", "Flop", "Shift"], ascending=[True, True, False], inplace=True)
     st.download_button("CSVダウンロード", df.to_csv(index=False), "shift_results.csv", "text/csv")
