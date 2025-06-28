@@ -1,6 +1,7 @@
 import eval7
 import csv
 import time
+import pandas as pd
 
 def generate_all_169_hands():
     ranks = 'AKQJT98765432'
@@ -52,25 +53,23 @@ def monte_carlo_winrate_vs_random(hand_str, iterations):
 
     return round((wins + ties / 2) / total * 100, 2)
 
-def calculate_all_winrates_montecarlo(trials=100000):
+def calculate_preflop_winrates(trials=100000):
+    """Streamlit用：全169ハンドを指定試行回数で計算し、DataFrameで返す"""
     hands = generate_all_169_hands()
-    results = []
-    start_time = time.time()
-
+    data = []
     for hand in hands:
         winrate = monte_carlo_winrate_vs_random(hand, trials)
-        results.append({'hand': hand, 'winrate': winrate})
+        data.append({"hand": hand, "winrate": winrate})
+    return pd.DataFrame(data)
 
-    elapsed = time.time() - start_time
+def calculate_all_winrates_montecarlo(trials=100000):
+    """コマンドライン用：CSVファイルとして保存"""
+    df = calculate_preflop_winrates(trials)
     filename = f"preflop_winrates_random_{trials}.csv"
-    with open(filename, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["hand", "winrate"])
-        writer.writeheader()
-        writer.writerows(results)
-
-    print(f"Completed in {round(elapsed, 2)} seconds")
+    df.to_csv(filename, index=False)
+    print(f"Completed in {round(time.time(), 2)} seconds")
     print(f"Saved to {filename}")
 
-# 試行回数をここで指定
+# 実行テスト用
 if __name__ == "__main__":
     calculate_all_winrates_montecarlo(trials=100000)
