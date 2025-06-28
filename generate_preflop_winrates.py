@@ -1,5 +1,6 @@
 import eval7
-import csv
+import random
+import copy
 import time
 import pandas as pd
 
@@ -16,31 +17,30 @@ def generate_all_169_hands():
                 hands.add(r1 + r2 + 'o')
     return sorted(hands)
 
-def hand_str_to_cards(hand_str):
+def hand_str_to_cards_precomputed(hand_str):
+    # スートの組み合わせを固定（速度優先）
     rank1, rank2 = hand_str[0], hand_str[1]
     suited = hand_str[2:] == 's'
-    suits = ['s', 'h', 'd', 'c']
+    offsuit = hand_str[2:] == 'o'
     if suited:
-        return [eval7.Card(rank1 + suits[0]), eval7.Card(rank2 + suits[0])]
-    elif 'o' in hand_str:
-        return [eval7.Card(rank1 + suits[0]), eval7.Card(rank2 + suits[1])]
+        return [eval7.Card(rank1 + 's'), eval7.Card(rank2 + 's')]
+    elif offsuit:
+        return [eval7.Card(rank1 + 's'), eval7.Card(rank2 + 'h')]
     else:
-        return [eval7.Card(rank1 + suits[0]), eval7.Card(rank2 + suits[1])]
+        return [eval7.Card(rank1 + 's'), eval7.Card(rank2 + 'h')]
 
-def monte_carlo_winrate_vs_random(hand_str, iterations):
-    wins, ties, total = 0, 0, 0
-    my_hand = hand_str_to_cards(hand_str)
+def monte_carlo_winrate_vs_random_optimized(my_hand, iterations):
+    wins, ties = 0, 0
+
+    # デッキを初期化し、自分のハンドを除外
+    base_deck = eval7.Deck()
+    base_deck.cards = [card for card in base_deck.cards if card not in my_hand]
 
     for _ in range(iterations):
-        deck = eval7.Deck()
-        for card in my_hand:
-            deck.cards.remove(card)
-
-        opp_hand = deck.sample(2)
-        for card in opp_hand:
-            deck.cards.remove(card)
-
-        board = deck.sample(5)
+        deck = copy.copy(base_deck.cards)
+        random.shuffle(deck)
+        opp_hand = deck[:2]
+        board = deck[2:7]
 
         my_score = eval7.evaluate(my_hand + board)
         opp_score = eval7.evaluate(opp_hand + board)
@@ -49,27 +49,30 @@ def monte_carlo_winrate_vs_random(hand_str, iterations):
             wins += 1
         elif my_score == opp_score:
             ties += 1
-        total += 1
 
-    return round((wins + ties / 2) / total * 100, 2)
+    return round((wins + ties / 2) / iterations * 100, 2)
 
 def calculate_preflop_winrates(trials=100000):
-    """Streamlit用：全169ハンドを指定試行回数で計算し、DataFrameで返す"""
     hands = generate_all_169_hands()
     data = []
-    for hand in hands:
-        winrate = monte_carlo_winrate_vs_random(hand, trials)
+    start = time.time()
+
+    for i, hand in enumerate(hands, 1):
+        my_hand = hand_str_to_cards_precomputed(hand)
+        winrate = monte_carlo_winrate_vs_random_optimized(my_hand, trials)
         data.append({"hand": hand, "winrate": winrate})
+        print(f"[{i:3}/169] {hand}: {winrate:.2f}%")
+
+    elapsed = round(time.time() - start, 1)
+    print(f"\n✅ 完了：全169ハンド（各{trials}回） → {elapsed} 秒")
     return pd.DataFrame(data)
 
 def calculate_all_winrates_montecarlo(trials=100000):
-    """コマンドライン用：CSVファイルとして保存"""
     df = calculate_preflop_winrates(trials)
     filename = f"preflop_winrates_random_{trials}.csv"
     df.to_csv(filename, index=False)
-    print(f"Completed in {round(time.time(), 2)} seconds")
-    print(f"Saved to {filename}")
+    print(f"💾 保存先: {filename}")
 
-# 実行テスト用
+# 実行用
 if __name__ == "__main__":
     calculate_all_winrates_montecarlo(trials=100000)
