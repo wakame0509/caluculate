@@ -9,21 +9,30 @@ from hand_utils import all_starting_hands
 from flop_generator import generate_flops_by_type
 from preflop_winrates_random import get_static_preflop_winrate
 from generate_preflop_winrates import calculate_preflop_winrates
+from generate_preflop_winrates import calculate_preflop_winrates_streamlit 
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（自動・手動切替＋CSV保存）")
 
-mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード", "プリフロップ勝率生成"])
-hand_str = st.selectbox("自分のハンドを選択", all_starting_hands)
-trials = st.selectbox("モンテカルロ試行回数", [1000, 5000, 10000, 100000])
 if mode == "プリフロップ勝率生成":
     st.header("プリフロップ勝率生成（ランダム相手）")
     trials_pf = st.selectbox("試行回数", [100000, 200000, 500000, 1000000])
     if st.button("計算開始（CSV保存）"):
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
+        def update_progress(i, hand, winrate):
+            progress_bar.progress(i / 169)
+            status_text.text(f"[{i}/169] {hand}: {winrate:.2f}%")
+
         with st.spinner(f"{trials_pf:,}回のモンテカルロ計算中..."):
-            result_df = calculate_preflop_winrates(trials=trials_pf)
+            result_df = calculate_preflop_winrates_streamlit(
+                trials=trials_pf,
+                update_func=update_progress
+            )
+
         st.success("計算完了 ✅")
         st.download_button("CSVダウンロード", result_df.to_csv(index=False), "preflop_winrates.csv", "text/csv")
-    st.stop()
+   st.stop()
 # 自動モード
 if mode == "自動生成モード":
     flop_type = st.selectbox("フロップタイプを選択", [
