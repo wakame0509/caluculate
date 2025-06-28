@@ -38,7 +38,7 @@ if mode in ["自動生成モード", "手動選択モード"]:
         hand_str = st.selectbox("自分のハンドを選択してください", ALL_HANDS)
 # 自動モード
 if mode == "自動生成モード":
-    
+    trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
@@ -77,6 +77,7 @@ if mode == "自動生成モード":
 
 # 手動モード
 elif mode == "手動選択モード":
+    trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_input = st.text_input("フロップ（例: Ah Ks Td）")
     turn_input = st.text_input("ターンカード（任意）")
     river_input = st.text_input("リバーカード（任意）")
