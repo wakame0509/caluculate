@@ -32,12 +32,11 @@ def hand_str_to_cards(hand_str):
 def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     wins = 0
     ties = 0
+    used_ids = set(int(c) for c in my_hand + opp_hand + board)
 
     for _ in range(iterations):
         deck = list(eval7.Deck())
-        used = my_hand + opp_hand + board
-        used_str = set(str(c) for c in used)
-        deck = [card for card in deck if str(card) not in used_str]
+        deck = [card for card in deck if int(card) not in used_ids]
 
         random.shuffle(deck)
         remaining_board = deck[:5 - len(board)]
@@ -64,7 +63,6 @@ def detect_made_hand(hole_cards, board_cards):
     suit_counts = {s: suits.count(s) for s in set(suits)}
     counts = list(rank_counts.values())
 
-    # ストレートフラッシュ判定
     suit_groups = {}
     for card in all_cards:
         value = convert_rank_to_value(card.rank)
@@ -115,10 +113,10 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     candidate_flops = generate_flops_by_type(flop_type)
 
     for _ in range(trials):
-        flop = [eval7.Card(str(c)) for c in random.choice(candidate_flops)]
-        used = hole_cards + flop
-        used_str = set(str(c) for c in used)
-        deck = [card for card in eval7.Deck() if str(card) not in used_str]
+        flop_raw = random.choice(candidate_flops)
+        flop = [eval7.Card(str(c)) for c in flop_raw]
+        used_ids = set(int(c) for c in hole_cards + flop)
+        deck = [card for card in eval7.Deck() if int(card) not in used_ids]
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
@@ -150,9 +148,8 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     total_winrate = 0
 
     for _ in range(trials):
-        used = hole_cards + flop
-        used_str = set(str(c) for c in used)
-        deck = [card for card in eval7.Deck() if str(card) not in used_str]
+        used_ids = set(int(c) for c in hole_cards + flop)
+        deck = [card for card in eval7.Deck() if int(card) not in used_ids]
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
