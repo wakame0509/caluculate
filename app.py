@@ -5,7 +5,7 @@ import eval7
 from simulate_shift_flop import run_shift_flop
 from simulate_shift_turn import run_shift_turn
 from simulate_shift_river import run_shift_river
-from hand_utils import all_starting_hands
+from hand_utils import all_starting_hands, hand_str_to_cards
 from flop_generator import generate_flops_by_type
 from preflop_winrates_random import get_static_preflop_winrate
 from generate_preflop_winrates import calculate_preflop_winrates
@@ -61,11 +61,11 @@ if mode == "自動生成モード":
                 top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
 
                 # 完全ランダムにターンカードを選び、その1枚でリバー計算を実行
-　　　　　　　　used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand_str)]
-　　　　　　　　deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-　　　　　　　　remaining = [c for c in deck if c not in used_cards]
-　　　　　　　　random_turn = random.choice(remaining)
-　　　　　　　　top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
+　　　　　　　　　　　used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand_str)]
+　　　　　　　　　　　deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+　　　　　　　　　　　remaining = [c for c in deck if c not in used_cards]
+　　　　　　　　　　　random_turn = random.choice(remaining)
+　　　　　　　　　　　top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
 
                 flop_results.append((flop_cards_str, static_wr, shift_feats))
                 turn_results.append((flop_cards_str, top10_t, bottom10_t))
