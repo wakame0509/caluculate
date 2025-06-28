@@ -7,7 +7,7 @@ from simulate_shift_turn import run_shift_turn
 from simulate_shift_river import run_shift_river
 from hand_utils import all_starting_hands
 from flop_generator import generate_flops_by_type
-from import get_static_preflop_winrate
+from get_static_preflop_winrate
 from generate_preflop_winrates import calculate_preflop_winrates
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（自動・手動切替＋CSV保存）")
