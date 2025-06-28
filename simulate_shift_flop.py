@@ -148,7 +148,7 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     total_winrate = 0
 
     for _ in range(trials):
-        used_ids = set(c._value for c in hole_cards + flop)
+        used_ids = set(str(c) for c in hole_cards + flop)
         deck = [card for card in eval7.Deck() if card._value not in used_ids]
 
         opp_hand = random.sample(deck, 2)
