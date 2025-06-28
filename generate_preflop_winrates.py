@@ -18,7 +18,6 @@ def generate_all_169_hands():
     return sorted(hands)
 
 def hand_str_to_cards_precomputed(hand_str):
-    # スートの組み合わせを固定（速度優先）
     rank1, rank2 = hand_str[0], hand_str[1]
     suited = hand_str[2:] == 's'
     offsuit = hand_str[2:] == 'o'
@@ -32,7 +31,6 @@ def hand_str_to_cards_precomputed(hand_str):
 def monte_carlo_winrate_vs_random_optimized(my_hand, iterations):
     wins, ties = 0, 0
 
-    # デッキを初期化し、自分のハンドを除外
     base_deck = eval7.Deck()
     base_deck.cards = [card for card in base_deck.cards if card not in my_hand]
 
@@ -61,7 +59,7 @@ def calculate_preflop_winrates(trials=100000):
         my_hand = hand_str_to_cards_precomputed(hand)
         winrate = monte_carlo_winrate_vs_random_optimized(my_hand, trials)
         data.append({"hand": hand, "winrate": winrate})
-        print(f"[{i:3}/169] {hand}: {winrate:.2f}%")
+        print(f"[{i}/169] {hand}: {winrate}%")  # ← 進捗を明示表示！
 
     elapsed = round(time.time() - start, 1)
     print(f"\n✅ 完了：全169ハンド（各{trials}回） → {elapsed} 秒")
@@ -73,6 +71,5 @@ def calculate_all_winrates_montecarlo(trials=100000):
     df.to_csv(filename, index=False)
     print(f"💾 保存先: {filename}")
 
-# 実行用
 if __name__ == "__main__":
     calculate_all_winrates_montecarlo(trials=100000)
