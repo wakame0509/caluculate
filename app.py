@@ -32,7 +32,7 @@ if mode == "プリフロップ勝率生成":
 
         st.success("計算完了 ✅")
         st.download_button("CSVダウンロード", result_df.to_csv(index=False), "preflop_winrates.csv", "text/csv")
-   st.stop()
+    st.stop()
 # 自動モード
 if mode == "自動生成モード":
     flop_type = st.selectbox("フロップタイプを選択", [
