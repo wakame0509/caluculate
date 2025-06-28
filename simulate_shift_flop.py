@@ -32,11 +32,11 @@ def hand_str_to_cards(hand_str):
 def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     wins = 0
     ties = 0
-    used_ids = set(c._value for c in my_hand + opp_hand + board)
+    used_ids = set(int(c) for c in my_hand + opp_hand + board)
 
     for _ in range(iterations):
         deck = list(eval7.Deck())
-        deck = [card for card in deck if card._value not in used_ids]
+        deck = [card for card in deck if int(card) not in used_ids]
 
         random.shuffle(deck)
         remaining_board = deck[:5 - len(board)]
@@ -115,8 +115,8 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     for _ in range(trials):
         flop_raw = random.choice(candidate_flops)
         flop = [eval7.Card(str(c)) for c in flop_raw]
-        used_ids = set(c._value for c in hole_cards + flop)
-        deck = [card for card in eval7.Deck() if card._value not in used_ids]
+        used_ids = set(int(c) for c in hole_cards + flop)
+        deck = [card for card in eval7.Deck() if int(card) not in used_ids]
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
@@ -148,8 +148,8 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     total_winrate = 0
 
     for _ in range(trials):
-        used_ids = set(str(c) for c in hole_cards + flop)
-        deck = [card for card in eval7.Deck() if card._value not in used_ids]
+        used_ids = set(int(c) for c in hole_cards + flop)
+        deck = [card for card in eval7.Deck() if int(card) not in used_ids]
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
