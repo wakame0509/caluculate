@@ -39,7 +39,6 @@ if mode == "プリフロップ勝率生成":
 # 自動モード
 if mode == "自動生成モード":
     
-    ])
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
