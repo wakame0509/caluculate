@@ -34,7 +34,7 @@ if mode == "プリフロップ勝率生成":
         st.download_button("CSVダウンロード", result_df.to_csv(index=False), "preflop_winrates.csv", "text/csv")
     st.stop()
     if mode in ["自動生成モード", "手動選択モード"]:
-    selected_hand = st.selectbox("自分のハンドを選択してください", ALL_HANDS)
+        selected_hand = st.selectbox("自分のハンドを選択してください", ALL_HANDS)
 # 自動モード
 if mode == "自動生成モード":
     flop_type = st.selectbox("フロップタイプを選択", [
