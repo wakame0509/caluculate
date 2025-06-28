@@ -51,23 +51,19 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
     return top10, bottom10
 
 def generate_rivers(board4, hole_cards):
-    used_ids = set(int(c) for c in board4 + hole_cards)
+    used_ids = set(c._value for c in board4 + hole_cards)
     deck = eval7.Deck()
-    return [card for card in deck.cards if int(card) not in used_ids]
+    return [card for card in deck.cards if card._value not in used_ids]
 
 def simulate_vs_random(my_hand, board4, river_card, iterations=45):
-    my_hand = [eval7.Card(str(c)) for c in my_hand]
-    board4 = [eval7.Card(str(c)) for c in board4]
-    river_card = [eval7.Card(str(c)) for c in river_card]
     full_board = board4 + river_card
-
-    used_ids = set(int(c) for c in my_hand + full_board)
+    used_ids = set(c._value for c in my_hand + full_board)
 
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if int(c) not in used_ids]
+        deck.cards = [c for c in deck.cards if c._value not in used_ids]
         deck.shuffle()
         opp_hand = deck.sample(2)
 
