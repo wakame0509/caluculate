@@ -43,13 +43,13 @@ if mode == "自動生成モード":
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
         with st.spinner("ランダムフロップ生成中..."):
-        deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-        flops_str = []
+            deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+            flops_str = []
 
             while len(flops_str) < flop_count:
-            sample = random.sample(deck, 3)
+                sample = random.sample(deck, 3)
                 if sample not in flops_str:
-                flops_str.append(sample)
+                    flops_str.append(sample)
         flop_results, turn_results, river_results = [], [], []
 
         for idx, flop_cards_str in enumerate(flops_str):
