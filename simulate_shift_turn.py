@@ -4,11 +4,13 @@ from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
 def convert_rank_to_value(rank):
-    """ランク（'A', 'K', 'Q', ...）を数値に変換"""
+    """ランク（'A', 'K', 'Q', ... または int）を数値に変換"""
     rank_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
                  '7': 7, '8': 8, '9': 9, 'T': 10,
                  'J': 11, 'Q': 12, 'K': 13, 'A': 14}
-    return rank_dict[rank]
+    if isinstance(rank, int):
+        return rank
+    return rank_dict[str(rank)]
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
@@ -33,12 +35,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
             'features': features
         })
 
-    # shift の降順で保存
     df = pd.DataFrame(results)
     df_sorted = df.sort_values(by='shift', ascending=False)
     df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
 
-    # トップ・ボトム10を返す（任意の使い道に備えて）
     results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
@@ -110,9 +110,9 @@ def detect_made_hand(hole_cards, board_cards):
 
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
-    for i in range(len(unique_values) - 4 + 1):
+    for i in range(len(unique_values) - 4):
         window = unique_values[i:i+5]
-        if len(window) == 5 and window[0] - window[4] == 4:
+        if window[0] - window[4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
