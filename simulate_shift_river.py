@@ -32,6 +32,10 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
         made_hand = detect_made_hand(hole_cards, full_board)
         features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
 
+        # Overcard 判定を追加
+        if detect_overcard(hole_cards, full_board):
+            features.append("overcard")
+
         results.append({
             'river_card': str(river),
             'winrate': round(winrate, 1),
@@ -51,19 +55,23 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
     return top10, bottom10
 
 def generate_rivers(board4, hole_cards):
-    used_ids = set(c._value for c in board4 + hole_cards)
+    used_ids = set(int(c) for c in board4 + hole_cards)
     deck = eval7.Deck()
-    return [card for card in deck.cards if card._value not in used_ids]
+    return [card for card in deck.cards if int(card) not in used_ids]
 
 def simulate_vs_random(my_hand, board4, river_card, iterations=45):
+    my_hand = [eval7.Card(str(c)) for c in my_hand]
+    board4 = [eval7.Card(str(c)) for c in board4]
+    river_card = [eval7.Card(str(c)) for c in river_card]
     full_board = board4 + river_card
-    used_ids = set(c._value for c in my_hand + full_board)
+
+    used_ids = set(int(c) for c in my_hand + full_board)
 
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if c._value not in used_ids]
+        deck.cards = [c for c in deck.cards if int(c) not in used_ids]
         deck.shuffle()
         opp_hand = deck.sample(2)
 
@@ -118,6 +126,15 @@ def is_straight(values):
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
+    return False
+
+# New: Overcard判定関数
+def detect_overcard(hole_cards, board_cards):
+    ranks = [convert_rank_to_value(c.rank) for c in hole_cards]
+    board_values = [convert_rank_to_value(c.rank) for c in board_cards]
+    if ranks[0] == ranks[1]:  # ペア
+        pair_rank = ranks[0]
+        return any(b > pair_rank for b in board_values)
     return False
 
 def run_shift_river(hand_str, flop_cards, turn_card, trials_per_river=45):
