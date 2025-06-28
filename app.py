@@ -38,16 +38,19 @@ if mode == "プリフロップ勝率生成":
         hand_str = st.selectbox("自分のハンドを選択してください", ALL_HANDS)
 # 自動モード
 if mode == "自動生成モード":
-    flop_type = st.selectbox("フロップタイプを選択", [
-        "high_rainbow", "low_connected", "middle_monotone",
-        "paired", "wet", "dry", "random"
+    
     ])
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
-        with st.spinner("フロップ生成中..."):
-            flops_str = generate_flops_by_type(flop_type, count=flop_count)
+    with st.spinner("ランダムフロップ生成中..."):
+        deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+        flops_str = []
 
+        while len(flops_str) < flop_count:
+            sample = random.sample(deck, 3)
+            if sample not in flops_str:
+                flops_str.append(sample)
         flop_results, turn_results, river_results = [], [], []
 
         for idx, flop_cards_str in enumerate(flops_str):
