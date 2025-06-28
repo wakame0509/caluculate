@@ -2,7 +2,16 @@ import eval7
 import pandas as pd
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
-from turn_generator import convert_rank_to_value
+
+def convert_rank_to_value(rank):
+    rank_map = {
+        '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+        '7': 7, '8': 8, '9': 9, 'T': 10,
+        'J': 11, 'Q': 12, 'K': 13, 'A': 14
+    }
+    if isinstance(rank, int):
+        return rank
+    return rank_map[str(rank)]
 
 def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=45):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
@@ -84,10 +93,9 @@ def detect_made_hand(hole_cards, board_cards):
     suit_counts = {s: suits.count(s) for s in set(suits)}
     counts = list(rank_counts.values())
 
-    # ストレートフラッシュ判定
     for suit in suit_counts:
         suited_cards = [card for card in all_cards if card.suit == suit]
-        suited_values = sorted(set([convert_rank_to_value(card.rank) for card in suited_cards]), reverse=True)
+        suited_values = sorted(set(convert_rank_to_value(card.rank) for card in suited_cards), reverse=True)
         if is_straight(suited_values):
             return ["straight_flush"]
 
@@ -109,9 +117,9 @@ def detect_made_hand(hole_cards, board_cards):
 
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
-    for i in range(len(unique_values) - 4 + 1):
+    for i in range(len(unique_values) - 4):
         window = unique_values[i:i + 5]
-        if len(window) == 5 and window[0] - window[4] == 4:
+        if window[0] - window[4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
