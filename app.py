@@ -12,7 +12,7 @@ from generate_preflop_winrates import calculate_preflop_winrates
 from generate_preflop_winrates import calculate_preflop_winrates_streamlit 
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（自動・手動切替＋CSV保存）")
-
+mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード", "プリフロップ勝率生成"])
 if mode == "プリフロップ勝率生成":
     st.header("プリフロップ勝率生成（ランダム相手）")
     trials_pf = st.selectbox("試行回数", [100000, 200000, 500000, 1000000])
