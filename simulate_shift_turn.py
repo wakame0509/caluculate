@@ -4,7 +4,6 @@ from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
 def convert_rank_to_value(rank):
-    """ランク（'A', 'K', 'Q', ... または int）を数値に変換"""
     rank_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
                  '7': 7, '8': 8, '9': 9, 'T': 10,
                  'J': 11, 'Q': 12, 'K': 13, 'A': 14}
@@ -12,55 +11,18 @@ def convert_rank_to_value(rank):
         return rank
     return rank_dict[str(rank)]
 
-def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
-    hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
-    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-
-    static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
-    turn_candidates = generate_turns(flop_cards, hole_cards)
-
-    results = []
-    for turn in turn_candidates:
-        board4 = flop_cards + [turn]
-        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
-        shift = winrate - static_winrate
-        features = classify_flop_turn_pattern(flop_cards, turn)
-        made_hand = detect_made_hand(hole_cards, board4)
-        features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
-
-        results.append({
-            'turn_card': str(turn),
-            'winrate': round(winrate, 2),
-            'shift': round(shift, 2),
-            'features': features
-        })
-
-    df = pd.DataFrame(results)
-    df_sorted = df.sort_values(by='shift', ascending=False)
-    df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
-
-    results_sorted = df_sorted.to_dict(orient='records')
-    top10 = results_sorted[:10]
-    bottom10 = results_sorted[-10:]
-    return top10, bottom10
-
 def generate_turns(flop, hole_cards):
-    used_ids = set(int(c) for c in flop + hole_cards)
+    used_ids = set(c._value for c in flop + hole_cards)
     deck = eval7.Deck()
-    return [card for card in deck.cards if int(card) not in used_ids]
+    return [card for card in deck.cards if card._value not in used_ids]
 
 def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
-    my_hand = [eval7.Card(str(c)) for c in my_hand]
-    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-    turn_cards = [eval7.Card(str(c)) for c in turn_cards]
-
-    used_ids = set(int(c) for c in my_hand + flop_cards + turn_cards)
-
+    used_ids = set(c._value for c in my_hand + flop_cards + turn_cards)
     wins = ties = total = 0
 
     for _ in range(iterations):
         deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if int(c) not in used_ids]
+        deck.cards = [c for c in deck.cards if c._value not in used_ids]
         deck.shuffle()
         opp_hand = deck.sample(2)
 
@@ -116,6 +78,38 @@ def is_straight(values):
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
+
+def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
+    hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
+    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
+
+    static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
+    turn_candidates = generate_turns(flop_cards, hole_cards)
+
+    results = []
+    for turn in turn_candidates:
+        board4 = flop_cards + [turn]
+        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
+        shift = winrate - static_winrate
+        features = classify_flop_turn_pattern(flop_cards, turn)
+        made_hand = detect_made_hand(hole_cards, board4)
+        features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
+
+        results.append({
+            'turn_card': str(turn),
+            'winrate': round(winrate, 2),
+            'shift': round(shift, 2),
+            'features': features
+        })
+
+    df = pd.DataFrame(results)
+    df_sorted = df.sort_values(by='shift', ascending=False)
+    df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
+
+    results_sorted = df_sorted.to_dict(orient='records')
+    top10 = results_sorted[:10]
+    bottom10 = results_sorted[-10:]
+    return top10, bottom10
 
 def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
