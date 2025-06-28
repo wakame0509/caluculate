@@ -182,12 +182,13 @@ if "auto_flop" in st.session_state:
                 sign = "+" if item["shift"] > 0 else ""
                 st.markdown(f"　・{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
-# CSV保存ボタン（修正版：全件出力）
 if st.button("CSV保存"):
     csv_rows = []
 
     for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
         flop_str = ' '.join(flop_cards_str)
+
+        # ShiftFlop
         for f, delta in shift_feats.items():
             csv_rows.append({
                 "Stage": "ShiftFlop",
@@ -199,50 +200,53 @@ if st.button("CSV保存"):
                 "Role": ""
             })
 
-        # ShiftTurn 全件出力（Top10/Bottom10だけでなく）
-        all_turn_items = st.session_state["auto_turn"][i][1] + st.session_state["auto_turn"][i][2]
-        seen_turn_cards = set()
-        for item in all_turn_items:
-            if item["turn_card"] in seen_turn_cards:
-                continue  # 重複回避
-            seen_turn_cards.add(item["turn_card"])
+        # ShiftTurn 全件
+        turn_all = st.session_state["auto_turn"][i][0]  # results_sorted
+        seen_turn = set()
+        for item in turn_all:
+            card = item["turn_card"]
+            if card in seen_turn:
+                continue
+            seen_turn.add(card)
             made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
             feats = [f for f in item["features"] if not f.startswith("made_")]
             csv_rows.append({
                 "Stage": "ShiftTurn",
                 "Flop": flop_str,
                 "Turn": "",
-                "Detail": item["turn_card"],
+                "Detail": card,
                 "Shift": round(item["shift"], 2),
                 "Features": ', '.join(feats),
                 "Role": made
             })
 
-        # ShiftRiver 全件出力
+        # ShiftRiver 全件
         if i < len(st.session_state["auto_river"]):
             turn_card = st.session_state["auto_river"][i][1]
-            all_river_items = st.session_state["auto_river"][i][2] + st.session_state["auto_river"][i][3]
-            seen_river_cards = set()
-            for item in all_river_items:
-                if item["river_card"] in seen_river_cards:
-                    continue  # 重複回避
-                seen_river_cards.add(item["river_card"])
+            river_all = st.session_state["auto_river"][i][0]  # results_sorted
+            seen_river = set()
+            for item in river_all:
+                card = item["river_card"]
+                if card in seen_river:
+                    continue
+                seen_river.add(card)
                 made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
                 feats = [f for f in item["features"] if not f.startswith("made_")]
                 csv_rows.append({
                     "Stage": "ShiftRiver",
                     "Flop": flop_str,
                     "Turn": turn_card,
-                    "Detail": item["river_card"],
+                    "Detail": card,
                     "Shift": round(item["shift"], 2),
                     "Features": ', '.join(feats),
                     "Role": made
                 })
 
-    # 手動モードの出力（こちらはTop10/Bottom10のみ）
+    # 手動モード（Top10/Bottom10のみ）
     if "manual" in st.session_state:
         d = st.session_state["manual"]
         flop_str = ' '.join(d["flop_cards_str"])
+
         for f, delta in d["flop_feats"].items():
             csv_rows.append({
                 "Stage": "ShiftFlop (Manual)",
