@@ -98,7 +98,7 @@ def detect_made_hand(hole_cards, board_cards):
 
 def is_straight(values):
     unique = sorted(set(values), reverse=True)
-    for i in range(len(unique) - 4 + 1):
+    for i in range(len(unique) - 4):
         if unique[i] - unique[i + 4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
