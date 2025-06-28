@@ -30,7 +30,6 @@ def hand_str_to_cards_precomputed(hand_str):
 
 def monte_carlo_winrate_vs_random_optimized(my_hand, iterations):
     wins, ties = 0, 0
-
     base_deck = eval7.Deck()
     base_deck.cards = [card for card in base_deck.cards if card not in my_hand]
 
@@ -59,10 +58,25 @@ def calculate_preflop_winrates(trials=100000):
         my_hand = hand_str_to_cards_precomputed(hand)
         winrate = monte_carlo_winrate_vs_random_optimized(my_hand, trials)
         data.append({"hand": hand, "winrate": winrate})
-        print(f"[{i}/169] {hand}: {winrate}%")  # ← 進捗を明示表示！
+        print(f"[{i}/169] {hand}: {winrate}%")
 
     elapsed = round(time.time() - start, 1)
     print(f"\n✅ 完了：全169ハンド（各{trials}回） → {elapsed} 秒")
+    return pd.DataFrame(data)
+
+# ✅ Streamlit進捗表示対応版（別関数）
+def calculate_preflop_winrates_streamlit(trials=100000, update_func=None):
+    hands = generate_all_169_hands()
+    data = []
+    start = time.time()
+
+    for i, hand in enumerate(hands, 1):
+        my_hand = hand_str_to_cards_precomputed(hand)
+        winrate = monte_carlo_winrate_vs_random_optimized(my_hand, trials)
+        data.append({"hand": hand, "winrate": winrate})
+        if update_func:
+            update_func(i, hand, winrate)
+
     return pd.DataFrame(data)
 
 def calculate_all_winrates_montecarlo(trials=100000):
