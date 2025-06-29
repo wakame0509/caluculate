@@ -217,7 +217,7 @@ if st.button("CSV保存"):
 
         # ShiftTurn 全件（results_sorted）
         if i < len(st.session_state["auto_turn"]):
-            all_turn_items = st.session_state["auto_turn"][i][1]
+            all_turn_items = st.session_state["auto_turn"][i][2]
             seen_turn_cards = set()
             for item in all_turn_items:
                 if item["turn_card"] in seen_turn_cards:
