@@ -15,7 +15,7 @@ def convert_rank_to_value(rank):
     return rank_map[str(rank)]
 
 def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
-    hole_cards = [eval7.Card(c) for c in hand_str_to_cards(hand_str)]
+    hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(c) for c in flop_cards_str]
     turn_card = eval7.Card(turn_card_str)
     board4 = flop_cards + [turn_card]
