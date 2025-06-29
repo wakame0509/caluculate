@@ -1,4 +1,5 @@
 import eval7
+import random
 import pandas as pd
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
@@ -13,10 +14,10 @@ def convert_rank_to_value(rank):
         return rank
     return rank_map[str(rank)]
 
-def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=45):
-    hole_cards = hand_str_to_cards(hand_str)
-    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-    turn_card = eval7.Card(str(turn_card))
+def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
+    hole_cards = [eval7.Card(c) for c in hand_str_to_cards(hand_str)]
+    flop_cards = [eval7.Card(c) for c in flop_cards_str]
+    turn_card = eval7.Card(turn_card_str)
     board4 = flop_cards + [turn_card]
 
     static_winrate = simulate_vs_random(hole_cards, [], board4, trials_per_river)
@@ -60,13 +61,12 @@ def generate_rivers(board4, hole_cards):
 
 def simulate_vs_random(my_hand, river_cards, board4, iterations=45):
     used_cards = set(my_hand + board4 + river_cards)
-    wins = ties = 0
-
     full_board = board4 + river_cards
+    wins = ties = 0
 
     for _ in range(iterations):
         deck = [card for card in eval7.Deck() if card not in used_cards]
-        eval7.shuffle(deck)
+        random.shuffle(deck)
         opp_hand = deck[:2]
 
         my_score = eval7.evaluate(my_hand + full_board)
@@ -127,5 +127,5 @@ def detect_overcard(hole_cards, board_cards):
         return any(b > pair_rank for b in board_values)
     return False
 
-def run_shift_river(hand_str, flop_cards, turn_card, trials_per_river=45):
-    return simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river)
+def run_shift_river(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
+    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river)
