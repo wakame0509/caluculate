@@ -15,8 +15,15 @@ def convert_rank_to_value(rank):
     return rank_map[str(rank)]
 
 def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
-    hole_cards = hand_str_to_cards(hand_str)
-    flop_cards = flop_cards_str
+    # 文字列から確実に eval7.Card オブジェクトに変換
+    hole_cards = [eval7.Card(c) for c in hand_str_to_cards(hand_str)]
+
+    # flop_cards_str がすでに Card オブジェクトならこのまま、そうでなければ変換
+    if isinstance(flop_cards_str[0], str):
+        flop_cards = [eval7.Card(c) for c in flop_cards_str]
+    else:
+        flop_cards = flop_cards_str
+
     if isinstance(turn_card_str, str):
         turn_card = eval7.Card(turn_card_str)
     else:
