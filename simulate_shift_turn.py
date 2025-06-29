@@ -15,7 +15,7 @@ def convert_rank_to_value(rank):
 
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
-    hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
+    hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
 
     static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
@@ -26,6 +26,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
         board4 = flop_cards + [turn]
         winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
         shift = winrate - static_winrate
+
         features = classify_flop_turn_pattern(flop_cards, turn)
         made_hand = detect_made_hand(hole_cards, board4)
         features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
@@ -37,7 +38,8 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
             'turn_card': str(turn),
             'winrate': round(winrate, 2),
             'shift': round(shift, 2),
-            'features': features
+            'features': features,
+            'hand_rank': made_hand[0] if made_hand else '―'
         })
 
     df = pd.DataFrame(results)
@@ -47,28 +49,26 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
-
     return results_sorted, top10, bottom10
 
 
 def generate_turns(flop, hole_cards):
-    used_ids = set(str(c) for c in flop + hole_cards)
-    deck = eval7.Deck()
-    return [card for card in deck.cards if str(card) not in used_ids]
+    used = set(flop + hole_cards)
+    deck = list(eval7.Deck())
+    return [card for card in deck if card not in used]
 
 
 def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
     used_cards = set(my_hand + flop_cards + turn_cards)
-
     wins = ties = 0
-    for _ in range(iterations):
-        deck = list(eval7.Deck())
-        deck = [card for card in deck if card not in used_cards]
-        random.shuffle(deck)
+    full_board_base = flop_cards + turn_cards
 
+    for _ in range(iterations):
+        deck = [card for card in eval7.Deck() if card not in used_cards]
+        random.shuffle(deck)
         opp_hand = deck[:2]
-        remaining_board = deck[2: 2 + (5 - len(flop_cards + turn_cards))]
-        full_board = flop_cards + turn_cards + remaining_board
+        remaining_board = deck[2: 2 + (5 - len(full_board_base))]
+        full_board = full_board_base + remaining_board
 
         my_score = eval7.evaluate(my_hand + full_board)
         opp_score = eval7.evaluate(opp_hand + full_board)
@@ -83,19 +83,27 @@ def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
-    ranks = [card.rank for card in all_cards]
-    suits = [card.suit for card in all_cards]
-    values = sorted([convert_rank_to_value(card.rank) for card in all_cards], reverse=True)
+    ranks = [c.rank for c in all_cards]
+    suits = [c.suit for c in all_cards]
+    values = sorted([convert_rank_to_value(c.rank) for c in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
     counts = list(rank_counts.values())
 
-    for suit in suit_counts:
-        suited_cards = [card for card in all_cards if card.suit == suit]
-        suited_values = sorted(set(convert_rank_to_value(card.rank) for card in suited_cards), reverse=True)
-        if is_straight(suited_values):
-            return ["straight_flush"]
+    suit_groups = {}
+    for c in all_cards:
+        suit_groups.setdefault(c.suit, []).append(convert_rank_to_value(c.rank))
+
+    for suited_vals in suit_groups.values():
+        if len(suited_vals) >= 5:
+            suited_vals = sorted(set(suited_vals), reverse=True)
+            for i in range(len(suited_vals) - 4):
+                if suited_vals[i] - suited_vals[i + 4] == 4:
+                    return ["straight_flush"]
+            if set([14, 2, 3, 4, 5]).issubset(set(suited_vals)):
+                return ["straight_flush"]
+
     if 4 in counts:
         return ["quads"]
     if 3 in counts and 2 in counts:
@@ -114,9 +122,9 @@ def detect_made_hand(hole_cards, board_cards):
 
 
 def is_straight(values):
-    unique_values = sorted(set(values), reverse=True)
-    for i in range(len(unique_values) - 4):
-        if unique_values[i] - unique_values[i + 4] == 4:
+    unique = sorted(set(values), reverse=True)
+    for i in range(len(unique) - 4):
+        if unique[i] - unique[i + 4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
@@ -126,7 +134,7 @@ def is_straight(values):
 def detect_overcard(hole_cards, board_cards):
     values = [convert_rank_to_value(c.rank) for c in hole_cards]
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    if values[0] == values[1]:  # ペア
+    if values[0] == values[1]:
         pair_rank = values[0]
         return any(v > pair_rank for v in board_values)
     return False
