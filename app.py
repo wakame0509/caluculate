@@ -181,7 +181,9 @@ if "auto_flop" in st.session_state:
             for item in bottom10_r:
                 sign = "+" if item["shift"] > 0 else ""
                 st.markdown(f"　・{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
-
+if "auto_turn" not in st.session_state:
+    st.warning("自動計算がまだ実行されていません。")
+    st.stop()
 if st.button("CSV保存"):
     csv_rows = []
 
