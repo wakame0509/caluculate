@@ -14,9 +14,10 @@ def convert_rank_to_value(rank):
         return rank
     return rank_map[str(rank)]
 
-def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_winrate, trials_per_river=45):
+def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
     hole_cards = hand_str_to_cards(hand_str)
 
+    # flop_cards_str がすでに Card オブジェクトならそのまま
     if isinstance(flop_cards_str[0], str):
         flop_cards = [eval7.Card(c) for c in flop_cards_str]
     else:
@@ -28,13 +29,14 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
         turn_card = turn_card_str
 
     board4 = flop_cards + [turn_card]
+    static_turn_winrate = simulate_vs_random(hole_cards, [], board4, trials_per_river)
     river_candidates = generate_rivers(board4, hole_cards)
 
     results = []
     for river in river_candidates:
         full_board = board4 + [river]
-        winrate = simulate_vs_random(hole_cards, [river], board4, trials_per_river)
-        shift = winrate - static_winrate
+        river_winrate = simulate_vs_random(hole_cards, [river], board4, trials_per_river)
+        shift = river_winrate - static_turn_winrate
 
         features = classify_flop_turn_pattern(flop_cards, turn_card, river)
         made_hand = detect_made_hand(hole_cards, full_board)
@@ -45,16 +47,15 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
 
         results.append({
             'river_card': str(river),
-            'winrate': round(winrate, 2),
-            'shift': round(shift, 2),
+            'winrate': round(river_winrate, 1),
+            'shift': round(shift, 1),
             'features': features,
             'hand_rank': made_hand[0] if made_hand else '―'
         })
 
     df = pd.DataFrame(results)
     df_sorted = df.sort_values(by='shift', ascending=False)
-    filename = f'results_river_{hand_str}_{str(turn_card)}.csv'
-    df_sorted.to_csv(filename, index=False)
+    df_sorted.to_csv(f'results_river_{hand_str}_{str(turn_card)}.csv', index=False)
 
     results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
@@ -129,10 +130,10 @@ def is_straight(values):
 def detect_overcard(hole_cards, board_cards):
     ranks = [convert_rank_to_value(c.rank) for c in hole_cards]
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    if ranks[0] == ranks[1]:
+    if ranks[0] == ranks[1]:  # ペア
         pair_rank = ranks[0]
         return any(b > pair_rank for b in board_values)
     return False
 
-def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_winrate, trials_per_river=45):
-    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_winrate, trials_per_river)
+def run_shift_river(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
+    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river)
