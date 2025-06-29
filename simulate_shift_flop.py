@@ -51,6 +51,8 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
             ties += 1
 
     return (wins + ties / 2) / iterations * 100
+
+
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
