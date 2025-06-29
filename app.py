@@ -185,6 +185,17 @@ if "auto_turn" not in st.session_state:
     st.stop()
 if st.button("CSV保存"):
     csv_rows = []
+    csv_rows.append({
+        "Stage": "HandInfo",  # 識別ラベル
+        "Flop": "",
+        "Turn": "",
+        "Detail": "",
+        "Shift": "",
+        "Features": "",
+        "Role": "",
+        "Hand": hand_str  # ← 必要なら列名「Hand」を DataFrame で自動補完
+    })
+
 
     for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
         flop_str = ' '.join(flop_cards_str)
