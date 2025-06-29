@@ -14,11 +14,10 @@ def convert_rank_to_value(rank):
     return rank_dict[str(rank)]
 
 
-def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
+def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=20):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
 
-    static_winrate = simulate_vs_random(hole_cards, flop_cards, [], trials_per_turn)
     turn_candidates = generate_turns(flop_cards, hole_cards)
 
     results = []
@@ -140,5 +139,5 @@ def detect_overcard(hole_cards, board_cards):
     return False
 
 
-def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
-    return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
+def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
+    return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
