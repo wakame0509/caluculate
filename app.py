@@ -185,6 +185,7 @@ if "auto_turn" not in st.session_state:
     st.stop()
 if st.button("CSV保存"):
     csv_rows = []
+    static_wr_pf = get_static_preflop_winrate(hand_str)
 
     # 1行目：ハンド情報（識別ラベルとして）
     csv_rows.append({
@@ -193,25 +194,29 @@ if st.button("CSV保存"):
         "Turn": "",
         "Detail": "",
         "Shift": "",
+        "Winrate": "",
         "Features": "",
         "Role": "",
-        "Hand": hand_str
+        "Hand": hand_str,
+        "PreflopWinrate": round(static_wr_pf, 1)
     })
 
     # 自動モード
     for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
         flop_str = ' '.join(flop_cards_str)
 
-        # ===== フロップ単位でまとめるため見出し追加 =====
+        # フロップ単位で見出し
         csv_rows.append({
             "Stage": f"=== Flop {i+1}: {flop_str} ===",
             "Flop": "",
             "Turn": "",
             "Detail": "",
             "Shift": "",
+            "Winrate": "",
             "Features": "",
             "Role": "",
-            "Hand": ""
+            "Hand": "",
+            "PreflopWinrate": ""
         })
 
         # ShiftFlop 全件
@@ -222,13 +227,16 @@ if st.button("CSV保存"):
                 "Turn": "",
                 "Detail": f,
                 "Shift": round(delta, 2),
+                "Winrate": round(static_wr + delta, 2),
                 "Features": "",
-                "Role": ""
+                "Role": "",
+                "Hand": "",
+                "PreflopWinrate": ""
             })
 
         # ShiftTurn 全件
         if i < len(st.session_state["auto_turn"]):
-            all_turn_items = st.session_state["auto_turn"][i][1]  # ✅ 全件：index 0
+            all_turn_items = st.session_state["auto_turn"][i][1]
             seen_turn_cards = set()
             for item in all_turn_items:
                 if item["turn_card"] in seen_turn_cards:
@@ -242,14 +250,17 @@ if st.button("CSV保存"):
                     "Turn": "",
                     "Detail": item["turn_card"],
                     "Shift": round(item["shift"], 2),
+                    "Winrate": round(item["winrate"], 2),
                     "Features": ', '.join(feats),
-                    "Role": made
+                    "Role": made,
+                    "Hand": "",
+                    "PreflopWinrate": ""
                 })
 
         # ShiftRiver 全件
         if i < len(st.session_state["auto_river"]):
             turn_card = st.session_state["auto_river"][i][1]
-            all_river_items = st.session_state["auto_river"][i][2]  # ✅ 全件：index 2
+            all_river_items = st.session_state["auto_river"][i][2]
             seen_river_cards = set()
             for item in all_river_items:
                 if item["river_card"] in seen_river_cards:
@@ -263,14 +274,18 @@ if st.button("CSV保存"):
                     "Turn": turn_card,
                     "Detail": item["river_card"],
                     "Shift": round(item["shift"], 2),
+                    "Winrate": round(item["winrate"], 2),
                     "Features": ', '.join(feats),
-                    "Role": made
+                    "Role": made,
+                    "Hand": "",
+                    "PreflopWinrate": ""
                 })
 
-    # 手動モード（必要ならそのまま残す）
+    # 手動モード（必要なら）
     if "manual" in st.session_state:
         d = st.session_state["manual"]
         flop_str = ' '.join(d["flop_cards_str"])
+        static_wr = d["static_wr"]
 
         csv_rows.append({
             "Stage": f"=== Manual Flop: {flop_str} ===",
@@ -278,9 +293,11 @@ if st.button("CSV保存"):
             "Turn": "",
             "Detail": "",
             "Shift": "",
+            "Winrate": "",
             "Features": "",
             "Role": "",
-            "Hand": ""
+            "Hand": "",
+            "PreflopWinrate": ""
         })
 
         for f, delta in d["flop_feats"].items():
@@ -290,8 +307,11 @@ if st.button("CSV保存"):
                 "Turn": "",
                 "Detail": f,
                 "Shift": round(delta, 2),
+                "Winrate": round(static_wr + delta, 2),
                 "Features": "",
-                "Role": ""
+                "Role": "",
+                "Hand": "",
+                "PreflopWinrate": ""
             })
 
         for item in d["turn_top"] + d["turn_bottom"]:
@@ -303,8 +323,11 @@ if st.button("CSV保存"):
                 "Turn": "",
                 "Detail": item["turn_card"],
                 "Shift": round(item["shift"], 2),
+                "Winrate": round(item["winrate"], 2),
                 "Features": ', '.join(feats),
-                "Role": made
+                "Role": made,
+                "Hand": "",
+                "PreflopWinrate": ""
             })
 
         for item in d["river_top"] + d["river_bottom"]:
@@ -316,14 +339,17 @@ if st.button("CSV保存"):
                 "Turn": d["turn_card"],
                 "Detail": item["river_card"],
                 "Shift": round(item["shift"], 2),
+                "Winrate": round(item["winrate"], 2),
                 "Features": ', '.join(feats),
-                "Role": made
+                "Role": made,
+                "Hand": "",
+                "PreflopWinrate": ""
             })
 
     # 保存
     df = pd.DataFrame(csv_rows)
     st.session_state["csv_data"] = df.to_csv(index=False)
 
-# ダウンロードボタン（常時表示）
+# ダウンロードボタン
 if "csv_data" in st.session_state:
     st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
