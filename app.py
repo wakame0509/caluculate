@@ -67,8 +67,8 @@ if mode == "自動生成モード":
                 random_turn = random.choice(remaining)
                 all_t, top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
                 flop_results.append((flop_cards_str, static_wr, shift_feats))
-                turn_results.append((flop_cards_str, top10_t, bottom10_t))
-                river_results.append((flop_cards_str, random_turn, top10_r, bottom10_r))
+                turn_results.append((flop_cards_str, top10_t, bottom10_t, all_t))
+                river_results.append((flop_cards_str, random_turn, top10_r, bottom10_r, all_t))
 
         st.session_state["auto_flop"] = flop_results
         st.session_state["auto_turn"] = turn_results
