@@ -14,10 +14,9 @@ def convert_rank_to_value(rank):
         return rank
     return rank_map[str(rank)]
 
-def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
+def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
     hole_cards = hand_str_to_cards(hand_str)
 
-    # flop_cards_str がすでに Card オブジェクトならそのまま
     if isinstance(flop_cards_str[0], str):
         flop_cards = [eval7.Card(c) for c in flop_cards_str]
     else:
@@ -29,7 +28,6 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, tri
         turn_card = turn_card_str
 
     board4 = flop_cards + [turn_card]
-    static_turn_winrate = simulate_vs_random(hole_cards, [], board4, trials_per_river)
     river_candidates = generate_rivers(board4, hole_cards)
 
     results = []
@@ -135,5 +133,5 @@ def detect_overcard(hole_cards, board_cards):
         return any(b > pair_rank for b in board_values)
     return False
 
-def run_shift_river(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
-    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river)
+def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
+    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river)
