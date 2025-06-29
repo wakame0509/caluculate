@@ -14,11 +14,9 @@ def convert_rank_to_value(rank):
         return rank
     return rank_map[str(rank)]
 
-def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
-    # 文字列から確実に eval7.Card オブジェクトに変換
+def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_winrate, trials_per_river=45):
     hole_cards = hand_str_to_cards(hand_str)
 
-    # flop_cards_str がすでに Card オブジェクトならこのまま、そうでなければ変換
     if isinstance(flop_cards_str[0], str):
         flop_cards = [eval7.Card(c) for c in flop_cards_str]
     else:
@@ -28,9 +26,8 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, tri
         turn_card = eval7.Card(turn_card_str)
     else:
         turn_card = turn_card_str
-    board4 = flop_cards + [turn_card]
 
-    static_winrate = simulate_vs_random(hole_cards, [], board4, trials_per_river)
+    board4 = flop_cards + [turn_card]
     river_candidates = generate_rivers(board4, hole_cards)
 
     results = []
@@ -48,8 +45,8 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, tri
 
         results.append({
             'river_card': str(river),
-            'winrate': round(winrate, 1),
-            'shift': round(shift, 1),
+            'winrate': round(winrate, 2),
+            'shift': round(shift, 2),
             'features': features,
             'hand_rank': made_hand[0] if made_hand else '―'
         })
@@ -132,10 +129,10 @@ def is_straight(values):
 def detect_overcard(hole_cards, board_cards):
     ranks = [convert_rank_to_value(c.rank) for c in hole_cards]
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    if ranks[0] == ranks[1]:  # ペア
+    if ranks[0] == ranks[1]:
         pair_rank = ranks[0]
         return any(b > pair_rank for b in board_values)
     return False
 
-def run_shift_river(hand_str, flop_cards_str, turn_card_str, trials_per_river=45):
-    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, trials_per_river)
+def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_winrate, trials_per_river=45):
+    return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_winrate, trials_per_river)
