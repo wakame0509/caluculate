@@ -50,7 +50,7 @@ top10 = results_sorted[:10]
 bottom10 = results_sorted[-10:]
 
 # ✅ ここを修正
-return results_sorted, top10, bottom10
+    return results_sorted, top10, bottom10
 
 def generate_turns(flop, hole_cards):
     used_ids = set(str(c) for c in flop + hole_cards)
