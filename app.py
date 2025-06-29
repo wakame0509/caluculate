@@ -183,7 +183,6 @@ if "auto_flop" in st.session_state:
 if "auto_turn" not in st.session_state:
     st.warning("自動計算がまだ実行されていません。")
     st.stop()
- # CSV保存ボタン & ダウンロードボタン（常時表示）
 if st.button("CSV保存"):
     csv_rows = []
 
@@ -203,6 +202,18 @@ if st.button("CSV保存"):
     for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
         flop_str = ' '.join(flop_cards_str)
 
+        # ===== フロップ単位でまとめるため見出し追加 =====
+        csv_rows.append({
+            "Stage": f"=== Flop {i+1}: {flop_str} ===",
+            "Flop": "",
+            "Turn": "",
+            "Detail": "",
+            "Shift": "",
+            "Features": "",
+            "Role": "",
+            "Hand": ""
+        })
+
         # ShiftFlop 全件
         for f, delta in shift_feats.items():
             csv_rows.append({
@@ -215,9 +226,9 @@ if st.button("CSV保存"):
                 "Role": ""
             })
 
-        # ShiftTurn 全件（results_sorted）
+        # ShiftTurn 全件
         if i < len(st.session_state["auto_turn"]):
-            all_turn_items = st.session_state["auto_turn"][i][2]
+            all_turn_items = st.session_state["auto_turn"][i][0]  # ✅ 全件：index 0
             seen_turn_cards = set()
             for item in all_turn_items:
                 if item["turn_card"] in seen_turn_cards:
@@ -235,10 +246,10 @@ if st.button("CSV保存"):
                     "Role": made
                 })
 
-        # ShiftRiver 全件（results_sorted）
+        # ShiftRiver 全件
         if i < len(st.session_state["auto_river"]):
             turn_card = st.session_state["auto_river"][i][1]
-            all_river_items = st.session_state["auto_river"][i][2]
+            all_river_items = st.session_state["auto_river"][i][2]  # ✅ 全件：index 2
             seen_river_cards = set()
             for item in all_river_items:
                 if item["river_card"] in seen_river_cards:
@@ -256,10 +267,21 @@ if st.button("CSV保存"):
                     "Role": made
                 })
 
-    # 手動モード（Top10/Bottom10のみ）
+    # 手動モード（必要ならそのまま残す）
     if "manual" in st.session_state:
         d = st.session_state["manual"]
         flop_str = ' '.join(d["flop_cards_str"])
+
+        csv_rows.append({
+            "Stage": f"=== Manual Flop: {flop_str} ===",
+            "Flop": "",
+            "Turn": "",
+            "Detail": "",
+            "Shift": "",
+            "Features": "",
+            "Role": "",
+            "Hand": ""
+        })
 
         for f, delta in d["flop_feats"].items():
             csv_rows.append({
@@ -298,11 +320,10 @@ if st.button("CSV保存"):
                 "Role": made
             })
 
-    # CSVデータ保存 → セッションに保存
+    # 保存
     df = pd.DataFrame(csv_rows)
-    df.sort_values(by=["Stage", "Flop", "Shift"], ascending=[True, True, False], inplace=True)
     st.session_state["csv_data"] = df.to_csv(index=False)
 
 # ダウンロードボタン（常時表示）
 if "csv_data" in st.session_state:
-    st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")   
+    st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
