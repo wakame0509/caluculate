@@ -30,17 +30,13 @@ def hand_str_to_cards(hand_str):
 
 
 def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
-    wins = 0
-    ties = 0
-    used_cards = set(my_hand + opp_hand + board)  # カードオブジェクトで直接比較
+    wins = ties = 0
+    used_cards = set(my_hand + opp_hand + board)
 
     for _ in range(iterations):
-        deck = list(eval7.Deck())
-        deck = [card for card in deck if card not in used_cards]
-
+        deck = [card for card in eval7.Deck() if card not in used_cards]
         random.shuffle(deck)
-        remaining_board = deck[:5 - len(board)]
-        full_board = board + remaining_board
+        full_board = board + deck[:5 - len(board)]
 
         my_val = eval7.evaluate(my_hand + full_board)
         opp_val = eval7.evaluate(opp_hand + full_board)
@@ -55,26 +51,26 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
-    ranks = [card.rank for card in all_cards]
-    suits = [card.suit for card in all_cards]
-    values = sorted([convert_rank_to_value(card.rank) for card in all_cards], reverse=True)
+    ranks = [c.rank for c in all_cards]
+    suits = [c.suit for c in all_cards]
+    values = sorted([convert_rank_to_value(c.rank) for c in all_cards], reverse=True)
 
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
     suit_counts = {s: suits.count(s) for s in set(suits)}
     counts = list(rank_counts.values())
 
     suit_groups = {}
-    for card in all_cards:
-        value = convert_rank_to_value(card.rank)
-        suit_groups.setdefault(card.suit, []).append(value)
+    for c in all_cards:
+        value = convert_rank_to_value(c.rank)
+        suit_groups.setdefault(c.suit, []).append(value)
 
-    for suited_values in suit_groups.values():
-        if len(suited_values) >= 5:
-            suited_values = sorted(set(suited_values), reverse=True)
-            for i in range(len(suited_values) - 4):
-                if suited_values[i] - suited_values[i + 4] == 4:
+    for suited_vals in suit_groups.values():
+        if len(suited_vals) >= 5:
+            suited_vals = sorted(set(suited_vals), reverse=True)
+            for i in range(len(suited_vals) - 4):
+                if suited_vals[i] - suited_vals[i + 4] == 4:
                     return ["straight_flush"]
-            if set([14, 2, 3, 4, 5]).issubset(set(suited_values)):
+            if set([14, 2, 3, 4, 5]).issubset(set(suited_vals)):
                 return ["straight_flush"]
 
     if 4 in counts:
@@ -106,9 +102,9 @@ def is_straight(values):
 
 def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     hole_cards = hand_str_to_cards(hand_str)
-    static_winrate = get_static_preflop_winrate(hand_str)
+    static_wr = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
-    total_winrate = 0
+    total_wr = 0
 
     candidate_flops = generate_flops_by_type(flop_type)
 
@@ -120,30 +116,30 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
-        total_winrate += winrate
-        shift = winrate - static_winrate
+        total_wr += winrate
+        shift = winrate - static_wr
 
         features = extract_features_for_flop(flop)
-        made_hand = detect_made_hand(hole_cards, flop)
-        features.append(f"made_{made_hand[0]}")
+        made = detect_made_hand(hole_cards, flop)
+        features.append(f"made_{made[0]}")
 
         for feat in features:
             feature_shifts.setdefault(feat, []).append(shift)
 
-    avg_feature_shift = {
-        feat: round(sum(shifts) / len(shifts), 2)
-        for feat, shifts in feature_shifts.items()
+    avg_shifts = {
+        feat: round(sum(lst) / len(lst), 2)
+        for feat, lst in feature_shifts.items()
     }
-    average_flop_winrate = total_winrate / trials
-    return average_flop_winrate, avg_feature_shift
+    average_wr = total_wr / trials
+    return average_wr, avg_shifts
 
 
 def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     flop = [eval7.Card(str(c)) for c in flop]
     hole_cards = hand_str_to_cards(hand_str)
-    static_winrate = get_static_preflop_winrate(hand_str)
+    static_wr = get_static_preflop_winrate(hand_str)
     feature_shifts = {}
-    total_winrate = 0
+    total_wr = 0
 
     for _ in range(trials):
         used_ids = set(str(c) for c in hole_cards + flop)
@@ -151,22 +147,22 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
 
         opp_hand = random.sample(deck, 2)
         winrate = simulate_vs_random(hole_cards, opp_hand, flop, iterations=20)
-        total_winrate += winrate
-        shift = winrate - static_winrate
+        total_wr += winrate
+        shift = winrate - static_wr
 
         features = extract_features_for_flop(flop)
-        made_hand = detect_made_hand(hole_cards, flop)
-        features.append(f"made_{made_hand[0]}")
+        made = detect_made_hand(hole_cards, flop)
+        features.append(f"made_{made[0]}")
 
         for feat in features:
             feature_shifts.setdefault(feat, []).append(shift)
 
-    avg_feature_shift = {
-        feat: round(sum(shifts) / len(shifts), 2)
-        for feat, shifts in feature_shifts.items()
+    avg_shifts = {
+        feat: round(sum(lst) / len(lst), 2)
+        for feat, lst in feature_shifts.items()
     }
-    average_flop_winrate = total_winrate / trials
-    return average_flop_winrate, avg_feature_shift
+    average_wr = total_wr / trials
+    return average_wr, avg_shifts
 
 
 def run_shift_flop(hand_str, flop_input, trials=10000):
@@ -175,4 +171,4 @@ def run_shift_flop(hand_str, flop_input, trials=10000):
     elif isinstance(flop_input, list):
         return simulate_shift_flop_montecarlo_specific(hand_str, flop_input, trials)
     else:
-        raise ValueError("flop_input must be a string (type) or list (specific flop)")
+        raise ValueError("flop_input must be a string (flop type) or list (specific flop)")
