@@ -71,9 +71,9 @@ if mode == "自動生成モード":
         turn_results.append((flop_cards_str, all_t, top10_t, bottom10_t))  # ✅ 修正済
         river_results.append((flop_cards_str, random_turn, all_r, top10_r, bottom10_r))  # ✅ 修正済
 
-st.session_state["auto_flop"] = flop_results
-st.session_state["auto_turn"] = turn_results
-st.session_state["auto_river"] = river_results
+        st.session_state["auto_flop"] = flop_results
+        st.session_state["auto_turn"] = turn_results
+        st.session_state["auto_river"] = river_results
 # 手動モード
 elif mode == "手動選択モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
