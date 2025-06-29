@@ -53,19 +53,19 @@ if mode == "自動生成モード":
         flop_results, turn_results, river_results = [], [], []
 
         for idx, flop_cards_str in enumerate(flops_str):
-    flop_cards = [eval7.Card(c) for c in flop_cards_str]
-    flop_str = ' '.join(flop_cards_str)
+            flop_cards = [eval7.Card(c) for c in flop_cards_str]
+            flop_str = ' '.join(flop_cards_str)
 
-    with st.spinner(f"({idx+1}/{len(flops_str)}) フロップ: {flop_str} 処理中..."):
-        static_wr, shift_feats = run_shift_flop(hand_str, flop_cards, trials)
-        all_t, top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
+            with st.spinner(f"({idx+1}/{len(flops_str)}) フロップ: {flop_str} 処理中..."):
+                static_wr, shift_feats = run_shift_flop(hand_str, flop_cards, trials)
+                all_t, top10_t, bottom10_t = run_shift_turn(hand_str, flop_cards, trials)
 
         # 完全ランダムにターンカードを選び、その1枚でリバー計算を実行
-        used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand_str)]
-        deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-        remaining = [c for c in deck if c not in used_cards]
-        random_turn = random.choice(remaining)
-        all_r, top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
+                used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand_str)]
+                deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+                remaining = [c for c in deck if c not in used_cards]
+                random_turn = random.choice(remaining)
+                all_r, top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
 
         flop_results.append((flop_cards_str, static_wr, shift_feats))
         turn_results.append((flop_cards_str, all_t, top10_t, bottom10_t))  # ✅ 修正済
