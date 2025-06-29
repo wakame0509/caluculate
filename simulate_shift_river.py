@@ -51,9 +51,7 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
     results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
-    results_sorted = df_sorted.to_dict(orient='records')
-top10 = results_sorted[:10]
-bottom10 = results_sorted[-10:]
+    
 
 # ✅ ここを修正
     return results_sorted, top10, bottom10
