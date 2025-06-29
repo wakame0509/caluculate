@@ -65,10 +65,10 @@ if mode == "自動生成モード":
                 deck = [r + s for r in '23456789TJQKA' for s in 'hdcs']
                 remaining = [c for c in deck if c not in used_cards]
                 random_turn = random.choice(remaining)
-                all_t, top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
+                all_r, top10_r, bottom10_r = run_shift_river(hand_str, flop_cards, random_turn, trials)
                 flop_results.append((flop_cards_str, static_wr, shift_feats))
                 turn_results.append((flop_cards_str, top10_t, bottom10_t, all_t))
-                river_results.append((flop_cards_str, random_turn, top10_r, bottom10_r, all_t))
+                river_results.append((flop_cards_str, random_turn, top10_r, bottom10_r, all_r))
 
         st.session_state["auto_flop"] = flop_results
         st.session_state["auto_turn"] = turn_results
@@ -203,28 +203,29 @@ if st.button("CSV保存"):
             })
 
         # ShiftTurn 全件出力（results_sortedから）
-        all_turn_items = st.session_state["auto_turn"][i][0]
-        seen_turn_cards = set()
-        for item in all_turn_items:
-            if item["turn_card"] in seen_turn_cards:
-                continue  # 重複回避
-            seen_turn_cards.add(item["turn_card"])
-            made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
-            feats = [f for f in item["features"] if not f.startswith("made_")]
-            csv_rows.append({
-                "Stage": "ShiftTurn",
-                "Flop": flop_str,
-                "Turn": "",
-                "Detail": item["turn_card"],
-                "Shift": round(item["shift"], 2),
-                "Features": ', '.join(feats),
-                "Role": made
-            })
+        if i < len(st.session_state["auto_turn"]):
+            all_turn_items = st.session_state["auto_turn"][i][0]  # ← results_sorted
+            seen_turn_cards = set()
+            for item in all_turn_items:
+                if item["turn_card"] in seen_turn_cards:
+                    continue
+                seen_turn_cards.add(item["turn_card"])
+                made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
+                feats = [f for f in item["features"] if not f.startswith("made_")]
+                csv_rows.append({
+                    "Stage": "ShiftTurn",
+                    "Flop": flop_str,
+                    "Turn": "",
+                    "Detail": item["turn_card"],
+                    "Shift": round(item["shift"], 2),
+                    "Features": ', '.join(feats),
+                    "Role": made
+                })
 
         # ShiftRiver 全件出力（results_sortedから）
         if i < len(st.session_state["auto_river"]):
             turn_card = st.session_state["auto_river"][i][1]
-            all_river_items = st.session_state["auto_river"][i][2]
+            all_river_items = st.session_state["auto_river"][i][0]  # ← results_sorted
             seen_river_cards = set()
             for item in all_river_items:
                 if item["river_card"] in seen_river_cards:
@@ -284,6 +285,7 @@ if st.button("CSV保存"):
                 "Role": made
             })
 
+    # 保存・ダウンロード
     df = pd.DataFrame(csv_rows)
     df.sort_values(by=["Stage", "Flop", "Shift"], ascending=[True, True, False], inplace=True)
     st.download_button("CSVダウンロード", df.to_csv(index=False), "shift_results.csv", "text/csv")
