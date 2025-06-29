@@ -14,18 +14,18 @@ def convert_rank_to_value(rank):
     return rank_map[str(rank)]
 
 def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_river=45):
-    hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
+    hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
     turn_card = eval7.Card(str(turn_card))
     board4 = flop_cards + [turn_card]
 
-    static_winrate = simulate_vs_random(hole_cards, board4, [], trials_per_river)
+    static_winrate = simulate_vs_random(hole_cards, [], board4, trials_per_river)
     river_candidates = generate_rivers(board4, hole_cards)
 
     results = []
     for river in river_candidates:
         full_board = board4 + [river]
-        winrate = simulate_vs_random(hole_cards, board4, [river], trials_per_river)
+        winrate = simulate_vs_random(hole_cards, [river], board4, trials_per_river)
         shift = winrate - static_winrate
 
         features = classify_flop_turn_pattern(flop_cards, turn_card, river)
@@ -51,31 +51,23 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards, turn_card, trials_per_
     results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
-    
-
-# ✅ ここを修正
     return results_sorted, top10, bottom10
 
 def generate_rivers(board4, hole_cards):
-    used_ids = set(str(c) for c in board4 + hole_cards)
-    deck = eval7.Deck()
-    return [card for card in deck.cards if str(card) not in used_ids]
+    used_cards = set(board4 + hole_cards)
+    deck = list(eval7.Deck())
+    return [card for card in deck if card not in used_cards]
 
-def simulate_vs_random(my_hand, board4, river_card, iterations=45):
-    my_hand = [eval7.Card(str(c)) for c in my_hand]
-    board4 = [eval7.Card(str(c)) for c in board4]
-    river_card = [eval7.Card(str(c)) for c in river_card]
-    full_board = board4 + river_card
+def simulate_vs_random(my_hand, river_cards, board4, iterations=45):
+    used_cards = set(my_hand + board4 + river_cards)
+    wins = ties = 0
 
-    used_ids = set(str(c) for c in my_hand + full_board)
-
-    wins = ties = total = 0
+    full_board = board4 + river_cards
 
     for _ in range(iterations):
-        deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if str(c) not in used_ids]
-        deck.shuffle()
-        opp_hand = deck.sample(2)
+        deck = [card for card in eval7.Deck() if card not in used_cards]
+        eval7.shuffle(deck)
+        opp_hand = deck[:2]
 
         my_score = eval7.evaluate(my_hand + full_board)
         opp_score = eval7.evaluate(opp_hand + full_board)
@@ -84,9 +76,8 @@ def simulate_vs_random(my_hand, board4, river_card, iterations=45):
             wins += 1
         elif my_score == opp_score:
             ties += 1
-        total += 1
 
-    return (wins + ties / 2) / total * 100
+    return (wins + ties / 2) / iterations * 100
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
@@ -103,7 +94,6 @@ def detect_made_hand(hole_cards, board_cards):
         suited_values = sorted(set(convert_rank_to_value(card.rank) for card in suited_cards), reverse=True)
         if is_straight(suited_values):
             return ["straight_flush"]
-
     if 4 in counts:
         return ["quads"]
     if 3 in counts and 2 in counts:
@@ -123,8 +113,7 @@ def detect_made_hand(hole_cards, board_cards):
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
     for i in range(len(unique_values) - 4):
-        window = unique_values[i:i + 5]
-        if window[0] - window[4] == 4:
+        if unique_values[i] - unique_values[i + 4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
