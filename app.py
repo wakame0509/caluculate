@@ -189,7 +189,7 @@ if st.button("CSV保存"):
     for i, (flop_cards_str, static_wr, shift_feats) in enumerate(st.session_state.get("auto_flop", [])):
         flop_str = ' '.join(flop_cards_str)
 
-        # ShiftFlop
+        # ShiftFlop 全件
         for f, delta in shift_feats.items():
             csv_rows.append({
                 "Stage": "ShiftFlop",
@@ -203,7 +203,7 @@ if st.button("CSV保存"):
 
         # ShiftTurn 全件出力（results_sortedから）
         if i < len(st.session_state["auto_turn"]):
-            all_turn_items = st.session_state["auto_turn"][i][0]  # ← results_sorted
+            all_turn_items = st.session_state["auto_turn"][i][1]  # ✅ 修正：index 1 = results_sorted
             seen_turn_cards = set()
             for item in all_turn_items:
                 if item["turn_card"] in seen_turn_cards:
@@ -224,7 +224,7 @@ if st.button("CSV保存"):
         # ShiftRiver 全件出力（results_sortedから）
         if i < len(st.session_state["auto_river"]):
             turn_card = st.session_state["auto_river"][i][1]
-            all_river_items = st.session_state["auto_river"][i][0]  # ← results_sorted
+            all_river_items = st.session_state["auto_river"][i][2]  # ✅ 修正：index 2 = results_sorted
             seen_river_cards = set()
             for item in all_river_items:
                 if item["river_card"] in seen_river_cards:
