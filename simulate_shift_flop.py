@@ -32,11 +32,11 @@ def hand_str_to_cards(hand_str):
 def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     wins = 0
     ties = 0
-    used_ids = set(str(c) for c in my_hand + opp_hand + board)
+    used_cards = set(my_hand + opp_hand + board)  # カードオブジェクトで直接比較
 
     for _ in range(iterations):
         deck = list(eval7.Deck())
-        deck = [card for card in deck if str(card) not in used_ids]
+        deck = [card for card in deck if card not in used_cards]
 
         random.shuffle(deck)
         remaining_board = deck[:5 - len(board)]
@@ -51,8 +51,6 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
             ties += 1
 
     return (wins + ties / 2) / iterations * 100
-
-
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [card.rank for card in all_cards]
