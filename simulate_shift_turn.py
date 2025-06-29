@@ -1,7 +1,9 @@
 import eval7
 import pandas as pd
+import random
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
+
 
 def convert_rank_to_value(rank):
     rank_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
@@ -10,6 +12,7 @@ def convert_rank_to_value(rank):
     if isinstance(rank, int):
         return rank
     return rank_dict[str(rank)]
+
 
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     hole_cards = [eval7.Card(str(c)) for c in hand_str_to_cards(hand_str)]
@@ -27,7 +30,6 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
         made_hand = detect_made_hand(hole_cards, board4)
         features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
 
-        # Overcard 判定
         if detect_overcard(hole_cards, board4):
             features.append("overcard")
 
@@ -45,41 +47,39 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn=20):
     results_sorted = df_sorted.to_dict(orient='records')
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
-    
 
-# ✅ ここを修正
     return results_sorted, top10, bottom10
+
 
 def generate_turns(flop, hole_cards):
     used_ids = set(str(c) for c in flop + hole_cards)
     deck = eval7.Deck()
     return [card for card in deck.cards if str(card) not in used_ids]
 
+
 def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
-    my_hand = [eval7.Card(str(c)) for c in my_hand]
-    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-    turn_cards = [eval7.Card(str(c)) for c in turn_cards]
+    used_cards = set(my_hand + flop_cards + turn_cards)
 
-    used_ids = set(str(c) for c in my_hand + flop_cards + turn_cards)
-
-    wins = ties = total = 0
-
+    wins = ties = 0
     for _ in range(iterations):
-        deck = eval7.Deck()
-        deck.cards = [c for c in deck.cards if str(c) not in used_ids]
-        deck.shuffle()
-        opp_hand = deck.sample(2)
+        deck = list(eval7.Deck())
+        deck = [card for card in deck if card not in used_cards]
+        random.shuffle(deck)
 
-        my_score = eval7.evaluate(my_hand + flop_cards + turn_cards)
-        opp_score = eval7.evaluate(opp_hand + flop_cards + turn_cards)
+        opp_hand = deck[:2]
+        remaining_board = deck[2: 2 + (5 - len(flop_cards + turn_cards))]
+        full_board = flop_cards + turn_cards + remaining_board
+
+        my_score = eval7.evaluate(my_hand + full_board)
+        opp_score = eval7.evaluate(opp_hand + full_board)
 
         if my_score > opp_score:
             wins += 1
         elif my_score == opp_score:
             ties += 1
-        total += 1
 
-    return (wins + ties / 2) / total * 100
+    return (wins + ties / 2) / iterations * 100
+
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
@@ -112,15 +112,16 @@ def detect_made_hand(hole_cards, board_cards):
         return ["pair"]
     return ["high_card"]
 
+
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
     for i in range(len(unique_values) - 4):
-        window = unique_values[i:i+5]
-        if window[0] - window[4] == 4:
+        if unique_values[i] - unique_values[i + 4] == 4:
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
+
 
 def detect_overcard(hole_cards, board_cards):
     values = [convert_rank_to_value(c.rank) for c in hole_cards]
@@ -129,6 +130,7 @@ def detect_overcard(hole_cards, board_cards):
         pair_rank = values[0]
         return any(v > pair_rank for v in board_values)
     return False
+
 
 def run_shift_turn(hand_str, flop_cards, trials_per_turn=20):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, trials_per_turn)
