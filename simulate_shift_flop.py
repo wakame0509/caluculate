@@ -4,7 +4,6 @@ from preflop_winrates_random import get_static_preflop_winrate
 from board_patterns import classify_flop_turn_pattern
 from flop_generator import generate_flops_by_type
 
-
 def convert_rank_to_value(rank):
     rank_map = {
         '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
@@ -14,7 +13,6 @@ def convert_rank_to_value(rank):
     if isinstance(rank, int):
         return rank
     return rank_map[str(rank)]
-
 
 def hand_str_to_cards(hand_str):
     rank1, rank2 = hand_str[0], hand_str[1]
@@ -28,26 +26,20 @@ def hand_str_to_cards(hand_str):
     else:
         return [eval7.Card(rank1 + suits[0]), eval7.Card(rank2 + suits[1])]
 
-
 def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     wins = ties = 0
     used_cards = set(my_hand + opp_hand + board)
-
     for _ in range(iterations):
         deck = [card for card in eval7.Deck() if card not in used_cards]
         random.shuffle(deck)
         full_board = board + deck[:5 - len(board)]
-
         my_val = eval7.evaluate(my_hand + full_board)
         opp_val = eval7.evaluate(opp_hand + full_board)
-
         if my_val > opp_val:
             wins += 1
         elif my_val == opp_val:
             ties += 1
-
     return (wins + ties / 2) / iterations * 100
-
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
@@ -69,26 +61,25 @@ def detect_made_hand(hole_cards, board_cards):
             suited_vals = sorted(set(suited_vals), reverse=True)
             for i in range(len(suited_vals) - 4):
                 if suited_vals[i] - suited_vals[i + 4] == 4:
-                    return ["straight_flush"]
+                    return "straight_flush"
             if set([14, 2, 3, 4, 5]).issubset(set(suited_vals)):
-                return ["straight_flush"]
+                return "straight_flush"
 
     if 4 in counts:
-        return ["quads"]
+        return "quads"
     if 3 in counts and 2 in counts:
-        return ["full_house"]
+        return "full_house"
     if max(suit_counts.values()) >= 5:
-        return ["flush"]
+        return "flush"
     if is_straight(values):
-        return ["straight"]
+        return "straight"
     if 3 in counts:
-        return ["set"]
+        return "set"
     if counts.count(2) >= 2:
-        return ["two_pair"]
+        return "two_pair"
     if 2 in counts:
-        return ["pair"]
-    return ["high_card"]
-
+        return "pair"
+    return "high_card"
 
 def is_straight(values):
     unique = sorted(set(values), reverse=True)
@@ -98,7 +89,6 @@ def is_straight(values):
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
-
 
 def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
     hole_cards = hand_str_to_cards(hand_str)
@@ -120,26 +110,19 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
         shift = winrate - static_wr
 
         features = []
-        made = detect_made_hand(hole_cards, flop)
-        made_hand = made[0] if made else "high_card"
-
+        made_hand = detect_made_hand(hole_cards, flop)
         if made_hand != "high_card":
-            features.append(f"made_{made_hand}")
+            features.append(f"newmade_{made_hand}")
         else:
             new_feats = classify_flop_turn_pattern(flop, turn=None)
-            for f in new_feats:
-                features.append("newmade_" + f)
+            features.extend(["newmade_" + f for f in new_feats])
 
         for feat in features:
             feature_shifts.setdefault(feat, []).append(shift)
 
-    avg_shifts = {
-        feat: round(sum(lst) / len(lst), 2)
-        for feat, lst in feature_shifts.items()
-    }
+    avg_shifts = {feat: round(sum(lst) / len(lst), 2) for feat, lst in feature_shifts.items()}
     average_wr = total_wr / trials
     return average_wr, avg_shifts
-
 
 def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
     flop = [eval7.Card(str(c)) for c in flop]
@@ -158,26 +141,19 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
         shift = winrate - static_wr
 
         features = []
-        made = detect_made_hand(hole_cards, flop)
-        made_hand = made[0] if made else "high_card"
-
+        made_hand = detect_made_hand(hole_cards, flop)
         if made_hand != "high_card":
-            features.append(f"made_{made_hand}")
+            features.append(f"newmade_{made_hand}")
         else:
             new_feats = classify_flop_turn_pattern(flop, turn=None)
-            for f in new_feats:
-                features.append("newmade_" + f)
+            features.extend(["newmade_" + f for f in new_feats])
 
         for feat in features:
             feature_shifts.setdefault(feat, []).append(shift)
 
-    avg_shifts = {
-        feat: round(sum(lst) / len(lst), 2)
-        for feat, lst in feature_shifts.items()
-    }
+    avg_shifts = {feat: round(sum(lst) / len(lst), 2) for feat, lst in feature_shifts.items()}
     average_wr = total_wr / trials
     return average_wr, avg_shifts
-
 
 def run_shift_flop(hand_str, flop_input, trials=10000):
     if isinstance(flop_input, str):
