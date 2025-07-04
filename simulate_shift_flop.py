@@ -1,7 +1,7 @@
 import random
 import eval7
 from preflop_winrates_random import get_static_preflop_winrate
-from extract_features import extract_features_for_flop
+from board_patterns import classify_flop_turn_pattern
 from flop_generator import generate_flops_by_type
 
 
@@ -119,9 +119,16 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
         total_wr += winrate
         shift = winrate - static_wr
 
-        features = extract_features_for_flop(flop)
+        features = []
         made = detect_made_hand(hole_cards, flop)
-        features.append(f"made_{made[0]}")
+        made_hand = made[0] if made else "high_card"
+
+        if made_hand != "high_card":
+            features.append(f"made_{made_hand}")
+        else:
+            new_feats = classify_flop_turn_pattern(flop, turn=None)
+            for f in new_feats:
+                features.append("newmade_" + f)
 
         for feat in features:
             feature_shifts.setdefault(feat, []).append(shift)
@@ -150,9 +157,16 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
         total_wr += winrate
         shift = winrate - static_wr
 
-        features = extract_features_for_flop(flop)
+        features = []
         made = detect_made_hand(hole_cards, flop)
-        features.append(f"made_{made[0]}")
+        made_hand = made[0] if made else "high_card"
+
+        if made_hand != "high_card":
+            features.append(f"made_{made_hand}")
+        else:
+            new_feats = classify_flop_turn_pattern(flop, turn=None)
+            for f in new_feats:
+                features.append("newmade_" + f)
 
         for feat in features:
             feature_shifts.setdefault(feat, []).append(shift)
