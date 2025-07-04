@@ -19,6 +19,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
 
     turn_candidates = generate_turns(flop_cards, hole_cards)
+    made_before = detect_made_hand(hole_cards, flop_cards)
 
     results = []
     for turn in turn_candidates:
@@ -26,19 +27,25 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
         shift = winrate - static_winrate
 
-        features = classify_flop_turn_pattern(flop_cards, turn)
-        made_hand = detect_made_hand(hole_cards, board4)
-        features.append(f"made_{made_hand[0]}" if made_hand else "made_―")
+        features = []
+        made_after = detect_made_hand(hole_cards, board4)
 
-        if detect_overcard(hole_cards, board4):
-            features.append("overcard")
+        # newmade_hand: 役が新たに完成した場合のみ
+        if made_after != made_before and made_after[0] != "high_card":
+            features.append(f"newmade_{made_after[0]}")
+        else:
+            # 役ができていなければ、特徴量ベースで分析
+            board_feats = classify_flop_turn_pattern(flop_cards, turn)
+            features.extend([f"newmade_{f}" for f in board_feats])
+            if detect_overcard(hole_cards, board4):
+                features.append("newmade_overcard")
 
         results.append({
             'turn_card': str(turn),
             'winrate': round(winrate, 2),
             'shift': round(shift, 2),
             'features': features,
-            'hand_rank': made_hand[0] if made_hand else '―'
+            'hand_rank': made_after[0] if made_after else '―'
         })
 
     df = pd.DataFrame(results)
