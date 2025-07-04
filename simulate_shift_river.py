@@ -41,11 +41,11 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
         features = []
         made_after = detect_made_hand(hole_cards, full_board)
 
-        # newmade_hand の検出（ターン→リバーで役が変化）
+        # newmade_hand の検出（ターン→リバーで役が新しく完成）
         if made_after != made_before and made_after[0] != "high_card":
             features.append(f"newmade_{made_after[0]}")
         else:
-            # 役が変化しなければ特徴量付与
+            # 役が変化していなければ、特徴量ベースで分析
             pattern_feats = classify_flop_turn_pattern(flop_cards, turn_card, river)
             features.extend([f"newmade_{feat}" for feat in pattern_feats])
             if detect_overcard(hole_cards, full_board):
