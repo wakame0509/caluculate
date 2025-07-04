@@ -187,7 +187,6 @@ if "manual" in st.session_state:
             sign = "+" if item["shift"] > 0 else ""
             st.markdown(f"{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
 
-# CSV保存
 if st.button("CSV保存"):
     csv_rows = []
     static_wr_pf = round(get_static_preflop_winrate(hand_str), 2)
@@ -241,7 +240,9 @@ if st.button("CSV保存"):
                     continue
                 seen_turn.add(tc)
                 made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
-                feats = [f for f in item["features"] if not f.startswith("made_")]
+                feats = [f for f in item["features"] if f.startswith("newmade_")]
+                if not feats:
+                    feats = ["―"]
                 shift = round(item["winrate"] - static_wr_flop, 2)
                 csv_rows.append({
                     "Stage": "ShiftTurn",
@@ -265,7 +266,9 @@ if st.button("CSV保存"):
                     continue
                 seen_river.add(rc)
                 made = next((f for f in item["features"] if f.startswith("made_")), "―").replace("made_", "")
-                feats = [f for f in item["features"] if not f.startswith("made_")]
+                feats = [f for f in item["features"] if f.startswith("newmade_")]
+                if not feats:
+                    feats = ["―"]
                 turn_wr = next((t["winrate"] for t in st.session_state["auto_turn"][i][1] if t["turn_card"] == turn_card), static_wr_flop)
                 shift = round(item["winrate"] - turn_wr, 2)
                 csv_rows.append({
@@ -280,10 +283,8 @@ if st.button("CSV保存"):
                     "Hand": ""
                 })
 
-    # 保存
     df = pd.DataFrame(csv_rows)
     st.session_state["csv_data"] = df.to_csv(index=False)
 
-# ダウンロードボタン（常時表示）
 if "csv_data" in st.session_state:
     st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
