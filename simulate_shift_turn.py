@@ -12,6 +12,13 @@ def convert_rank_to_value(rank):
         return rank
     return rank_dict[str(rank)]
 
+def is_overcard_turn(hole_cards, turn_card):
+    if hole_cards[0].rank != hole_cards[1].rank:
+        return False
+    pair_rank = convert_rank_to_value(hole_cards[0].rank)
+    turn_rank = convert_rank_to_value(turn_card.rank)
+    return turn_rank > pair_rank
+
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=20):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
@@ -34,8 +41,8 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
             board_feats = classify_flop_turn_pattern(flop_cards, turn)
             features.extend([f"newmade_{f}" for f in board_feats])
 
-            # ✅ 修正済：ターン時点でオーバーカードが出ていれば常に付与
-            if detect_overcard(hole_cards, board4):
+            # オーバーカード判定（ターン1枚のみで）
+            if is_overcard_turn(hole_cards, turn):
                 features.append("newmade_overcard")
 
         results.append({
@@ -129,13 +136,6 @@ def is_straight(values):
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
-
-def detect_overcard(hole_cards, board_cards):
-    if hole_cards[0].rank != hole_cards[1].rank:
-        return False
-    pair_rank = convert_rank_to_value(hole_cards[0].rank)
-    board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    return any(b > pair_rank for b in board_values)
 
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
