@@ -20,6 +20,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
 
     turn_candidates = generate_turns(flop_cards, hole_cards)
     made_before = detect_made_hand(hole_cards, flop_cards)
+    num_overcards_before = count_overcards(hole_cards, flop_cards)
 
     results = []
     for turn in turn_candidates:
@@ -35,7 +36,8 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         else:
             board_feats = classify_flop_turn_pattern(flop_cards, turn)
             features.extend([f"newmade_{f}" for f in board_feats])
-            if detect_overcard(hole_cards, board4):
+            num_overcards_after = count_overcards(hole_cards, board4)
+            if num_overcards_after > num_overcards_before:
                 features.append("newmade_overcard")
 
         results.append({
@@ -135,12 +137,12 @@ def is_straight(values):
     return False
 
 
-def detect_overcard(hole_cards, board_cards):
+def count_overcards(hole_cards, board_cards):
     if hole_cards[0].rank != hole_cards[1].rank:
-        return False
+        return 0
     pair_rank = convert_rank_to_value(hole_cards[0].rank)
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    return any(b > pair_rank for b in board_values)
+    return sum(1 for b in board_values if b > pair_rank)
 
 
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
