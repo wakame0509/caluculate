@@ -1,10 +1,12 @@
-import eval7
-from turn_generator import convert_rank_to_value
-
-def classify_flop_turn_pattern(flop, turn, river=None):
-    board = flop + [turn]
+def classify_flop_turn_pattern(flop, turn=None, river=None):
+    board = flop.copy()
+    if turn is not None:
+        board.append(turn)
     if river is not None:
         board.append(river)
+
+    # None除去（念のため）
+    board = [card for card in board if card is not None]
 
     suits = [str(card)[1] for card in board]
     ranks = [card.rank for card in board]
