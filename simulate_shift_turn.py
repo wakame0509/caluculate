@@ -4,6 +4,7 @@ import random
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
+
 def convert_rank_to_value(rank):
     rank_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
                  '7': 7, '8': 8, '9': 9, 'T': 10,
@@ -29,11 +30,11 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         features = []
         made_after = detect_made_hand(hole_cards, board4)
 
-        # newmade_hand: 役が新たに完成した場合のみ
+        # newmade_hand: 新しく役が完成した場合
         if made_after != made_before and made_after[0] != "high_card":
             features.append(f"newmade_{made_after[0]}")
         else:
-            # 役が変化していなければ、特徴量ベースで分析
+            # 役ができていない場合 → 特徴量ベース
             board_feats = classify_flop_turn_pattern(flop_cards, turn)
             features.extend([f"newmade_{f}" for f in board_feats])
             if detect_overcard(hole_cards, board4):
