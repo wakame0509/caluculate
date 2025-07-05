@@ -14,21 +14,23 @@ def convert_rank_to_value(rank):
         return rank
     return rank_map[str(rank)]
 
-
 def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
     hole_cards = hand_str_to_cards(hand_str)
-
     flop_cards = [eval7.Card(c) if isinstance(c, str) else c for c in flop_cards_str]
     turn_card = eval7.Card(turn_card_str) if isinstance(turn_card_str, str) else turn_card_str
-
     board4 = flop_cards + [turn_card]
+
     river_candidates = generate_rivers(board4, hole_cards)
     made_before = detect_made_hand(hole_cards, board4)
+
+    # フロップ・ターン時点のオーバーカード判定を記録
+    overcard_on_flop = detect_overcard(hole_cards, flop_cards)
+    overcard_on_turn = detect_overcard(hole_cards, board4)
 
     results = []
     for river in river_candidates:
         full_board = board4 + [river]
-        river_winrate = simulate_vs_random(hole_cards, full_board, trials_per_river)
+        river_winrate = simulate_vs_random(hole_cards, [river], board4, trials_per_river)
         shift = river_winrate - static_turn_winrate
 
         features = []
@@ -39,7 +41,10 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
         else:
             pattern_feats = classify_flop_turn_pattern(flop_cards, turn_card, river)
             features.extend([f"newmade_{feat}" for feat in pattern_feats])
-            if detect_overcard(hole_cards, full_board):
+
+            # 修正済：リバーで初めてオーバーカードが出た場合のみ付与
+            overcard_on_river = detect_overcard(hole_cards, full_board)
+            if overcard_on_river and not overcard_on_turn and not overcard_on_flop:
                 features.append("newmade_overcard")
 
         results.append({
@@ -59,15 +64,14 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
 
-
 def generate_rivers(board4, hole_cards):
     used_cards = set(board4 + hole_cards)
     deck = list(eval7.Deck())
     return [card for card in deck if card not in used_cards]
 
-
-def simulate_vs_random(my_hand, full_board, iterations=45):
-    used_cards = set(my_hand + full_board)
+def simulate_vs_random(my_hand, river_cards, board4, iterations=45):
+    used_cards = set(my_hand + board4 + river_cards)
+    full_board = board4 + river_cards
     wins = ties = 0
 
     for _ in range(iterations):
@@ -84,7 +88,6 @@ def simulate_vs_random(my_hand, full_board, iterations=45):
             ties += 1
 
     return (wins + ties / 2) / iterations * 100
-
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
@@ -118,7 +121,6 @@ def detect_made_hand(hole_cards, board_cards):
         return ["pair"]
     return ["high_card"]
 
-
 def is_straight(values):
     unique_values = sorted(set(values), reverse=True)
     for i in range(len(unique_values) - 4):
@@ -128,7 +130,6 @@ def is_straight(values):
         return True
     return False
 
-
 def detect_overcard(hole_cards, board_cards):
     values = [convert_rank_to_value(c.rank) for c in hole_cards]
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
@@ -136,7 +137,6 @@ def detect_overcard(hole_cards, board_cards):
         pair_rank = values[0]
         return any(b > pair_rank for b in board_values)
     return False
-
 
 def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
     return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river)
