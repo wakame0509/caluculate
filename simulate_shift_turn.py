@@ -18,7 +18,6 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     turn_candidates = generate_turns(flop_cards, hole_cards)
 
     made_before = detect_made_hand(hole_cards, flop_cards)
-    overcard_on_flop = detect_overcard(hole_cards, flop_cards)
 
     results = []
     for turn in turn_candidates:
@@ -35,9 +34,8 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
             board_feats = classify_flop_turn_pattern(flop_cards, turn)
             features.extend([f"newmade_{f}" for f in board_feats])
 
-            # ターンで新たにオーバーカードが出たときのみ付ける
-            overcard_on_turn = detect_overcard(hole_cards, board4)
-            if overcard_on_turn and not overcard_on_flop:
+            # ✅ 修正済：ターン時点でオーバーカードが出ていれば常に付与
+            if detect_overcard(hole_cards, board4):
                 features.append("newmade_overcard")
 
         results.append({
