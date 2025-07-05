@@ -1,12 +1,18 @@
-def classify_flop_turn_pattern(flop, turn=None, river=None):
-    board = flop.copy()
-    if turn is not None:
-        board.append(turn)
+import eval7
+
+# ランク（A〜K）を数値に変換する関数
+def convert_rank_to_value(rank):
+    rank_order = {
+        '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+        '7': 7, '8': 8, '9': 9, 'T': 10,
+        'J': 11, 'Q': 12, 'K': 13, 'A': 14
+    }
+    return rank_order.get(rank.upper(), 0)
+
+def classify_flop_turn_pattern(flop, turn, river=None):
+    board = flop + [turn]
     if river is not None:
         board.append(river)
-
-    # None除去（念のため）
-    board = [card for card in board if card is not None]
 
     suits = [str(card)[1] for card in board]
     ranks = [card.rank for card in board]
