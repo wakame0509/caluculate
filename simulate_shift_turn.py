@@ -4,7 +4,6 @@ import random
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
-
 def convert_rank_to_value(rank):
     rank_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
                  '7': 7, '8': 8, '9': 9, 'T': 10,
@@ -13,14 +12,13 @@ def convert_rank_to_value(rank):
         return rank
     return rank_dict[str(rank)]
 
-
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=20):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-
     turn_candidates = generate_turns(flop_cards, hole_cards)
+
     made_before = detect_made_hand(hole_cards, flop_cards)
-    num_overcards_before = count_overcards(hole_cards, flop_cards)
+    overcard_on_flop = detect_overcard(hole_cards, flop_cards)
 
     results = []
     for turn in turn_candidates:
@@ -36,8 +34,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         else:
             board_feats = classify_flop_turn_pattern(flop_cards, turn)
             features.extend([f"newmade_{f}" for f in board_feats])
-            num_overcards_after = count_overcards(hole_cards, board4)
-            if num_overcards_after > num_overcards_before:
+
+            # ターンで新たにオーバーカードが出たときのみ付ける
+            overcard_on_turn = detect_overcard(hole_cards, board4)
+            if overcard_on_turn and not overcard_on_flop:
                 features.append("newmade_overcard")
 
         results.append({
@@ -57,12 +57,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
 
-
 def generate_turns(flop, hole_cards):
     used = set(flop + hole_cards)
     deck = list(eval7.Deck())
     return [card for card in deck if card not in used]
-
 
 def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
     used_cards = set(my_hand + flop_cards + turn_cards)
@@ -85,7 +83,6 @@ def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=20):
             ties += 1
 
     return (wins + ties / 2) / iterations * 100
-
 
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
@@ -126,7 +123,6 @@ def detect_made_hand(hole_cards, board_cards):
         return ["pair"]
     return ["high_card"]
 
-
 def is_straight(values):
     unique = sorted(set(values), reverse=True)
     for i in range(len(unique) - 4):
@@ -136,14 +132,12 @@ def is_straight(values):
         return True
     return False
 
-
-def count_overcards(hole_cards, board_cards):
+def detect_overcard(hole_cards, board_cards):
     if hole_cards[0].rank != hole_cards[1].rank:
-        return 0
+        return False
     pair_rank = convert_rank_to_value(hole_cards[0].rank)
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    return sum(1 for b in board_values if b > pair_rank)
-
+    return any(b > pair_rank for b in board_values)
 
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
