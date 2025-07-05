@@ -291,13 +291,13 @@ if "csv_data" in st.session_state:
 import streamlit as st
 import pandas as pd
 
-# 役名の一覧（newmade_ が前提）
+# 役名一覧（newmade_ が前提）
 made_roles = [
     "newmade_set", "newmade_straight", "newmade_flush", "newmade_full_house",
     "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
 ]
 
-# 度数分布バケットの定義（役あり/役なしで分岐）
+# バケット定義
 def get_bucket(value, is_made):
     if is_made:
         if value <= 0:
@@ -318,9 +318,11 @@ def get_bucket(value, is_made):
             upper = lower + 5
             return f"{lower}〜{upper}%"
 
-# 特徴量ごとの集計処理
+# 特徴量ごとの度数分布・統計計算
 def analyze_features(df_all):
-    records = []
+    records_made = []
+    records_notmade = []
+
     for _, row in df_all.iterrows():
         shift = row["Shift"]
         features = str(row["Features"]).split(", ")
@@ -329,44 +331,59 @@ def analyze_features(df_all):
                 continue
             is_made = feat in made_roles
             bucket = get_bucket(shift, is_made)
-            records.append({
+            record = {
                 "feature": feat,
                 "shift": shift,
                 "bucket": bucket
-            })
+            }
+            if is_made:
+                records_made.append(record)
+            else:
+                records_notmade.append(record)
 
-    df_feat = pd.DataFrame(records)
+    df_made = pd.DataFrame(records_made)
+    df_notmade = pd.DataFrame(records_notmade)
 
-    # 集計処理
-    summary = df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-    avg_shift = df_feat.groupby("feature")["shift"].mean().round(2)
-    std_shift = df_feat.groupby("feature")["shift"].std().round(2)
+    summary_made = (
+        df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        if not df_made.empty else pd.DataFrame()
+    )
+    summary_notmade = (
+        df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        if not df_notmade.empty else pd.DataFrame()
+    )
 
-    summary["平均Shift"] = avg_shift
-    summary["標準偏差"] = std_shift
-    summary = summary.sort_values("平均Shift", ascending=False)
+    if not df_made.empty:
+        summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
+        summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
+        summary_made = summary_made.sort_values("平均Shift", ascending=False)
 
-    return summary
+    if not df_notmade.empty:
+        summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
+        summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
+        summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
+
+    return summary_made, summary_notmade
 
 # Streamlit UI
-st.title("特徴量別 勝率シフト度数分布＋統計（複数CSV対応）")
+st.title("特徴量別 勝率シフト度数分布＋統計（役あり／役なし分離）")
 
-uploaded_files = st.file_uploader("複数のCSVファイルをアップロード", type="csv", accept_multiple_files=True)
+uploaded_files = st.file_uploader("CSVファイルをアップロード（複数可）", type="csv", accept_multiple_files=True)
 
 if uploaded_files:
-    dfs = [pd.read_csv(file) for file in uploaded_files]
-    df_all = pd.concat(dfs, ignore_index=True)
-
+    df_all = pd.concat([pd.read_csv(file) for file in uploaded_files], ignore_index=True)
     st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
 
-    summary = analyze_features(df_all)
-    st.dataframe(summary)
+    summary_made, summary_notmade = analyze_features(df_all)
 
-    # CSV保存ボタン
-    csv = summary.to_csv(index=True, encoding="utf-8-sig")
-    st.download_button(
-        label="📥 結果をCSVとして保存",
-        data=csv,
-        file_name="feature_shift_summary.csv",
-        mime="text/csv"
-    )
+    if not summary_made.empty:
+        st.subheader("🟩 役が完成した特徴量（made）の統計")
+        st.dataframe(summary_made)
+        csv_made = summary_made.to_csv(index=True, encoding="utf-8-sig")
+        st.download_button("📥 made特徴量をCSV保存", data=csv_made, file_name="summary_made.csv", mime="text/csv")
+
+    if not summary_notmade.empty:
+        st.subheader("🟦 役が未完成の特徴量（not made）の統計")
+        st.dataframe(summary_notmade)
+        csv_notmade = summary_notmade.to_csv(index=True, encoding="utf-8-sig")
+        st.download_button("📥 not made特徴量をCSV保存", data=csv_notmade, file_name="summary_notmade.csv", mime="text/csv")
