@@ -288,31 +288,73 @@ if st.button("CSV保存"):
 
 if "csv_data" in st.session_state:
     st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
+import streamlit as st
 import pandas as pd
 
-st.header("特徴量別 Shift 分析（CSV）")
+# 役名の一覧（newmade_ が前提）
+made_roles = [
+    "newmade_set", "newmade_straight", "newmade_flush", "newmade_full_house",
+    "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
+]
 
-uploaded_csv = st.file_uploader("Shift結果のCSVファイルをアップロード", type="csv")
-if uploaded_csv is not None:
-    df = pd.read_csv(uploaded_csv)
+# 度数分布バケットの定義
+def get_bucket(value, is_made):
+    if is_made:
+        if value <= 0:
+            return "0%以下"
+        elif value > 30:
+            return "30%以上"
+        else:
+            lower = int(value // 5) * 5
+            upper = lower + 5
+            return f"{lower}〜{upper}%"
+    else:
+        if value <= -15:
+            return "-15%以下"
+        elif value >= 15:
+            return "15%以上"
+        else:
+            lower = int(value // 5) * 5
+            upper = lower + 5
+            return f"{lower}〜{upper}%"
 
-    # 特徴量をリストに変換
-    df["Features_list"] = df["Features"].fillna("").apply(lambda x: [f.strip() for f in x.split(",") if f.strip()])
-
-    # 各特徴量ごとの Shift 値を展開
-    feature_shift_data = []
-    for _, row in df.iterrows():
-        for feat in row["Features_list"]:
-            feature_shift_data.append({
-                "Feature": feat,
-                "Shift": row["Shift"]
+# 特徴量ごとの集計
+def analyze_features(df_all):
+    records = []
+    for _, row in df_all.iterrows():
+        shift = row["Shift"]
+        features = str(row["Features"]).split(", ")
+        for feat in features:
+            if not feat.startswith("newmade_"):
+                continue
+            is_made = feat in made_roles
+            bucket = get_bucket(shift, is_made)
+            records.append({
+                "feature": feat,
+                "shift": shift,
+                "bucket": bucket
             })
 
-    # DataFrame に変換して集計
-    feature_df = pd.DataFrame(feature_shift_data)
-    summary = feature_df.groupby("Feature").Shift.agg(
-        Count="count", Average_Shift="mean"
-    ).sort_values("Average_Shift", ascending=False)
+    df_feat = pd.DataFrame(records)
+    summary = df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+    avg_shift = df_feat.groupby("feature")["shift"].mean().round(2)
+    summary["平均Shift"] = avg_shift
+    summary = summary.sort_values("平均Shift", ascending=False)
+    return summary
 
-    st.subheader("特徴量別の平均 Shift と出現回数")
-    st.dataframe(summary.round(2))
+# Streamlit UI
+st.title("特徴量別 勝率シフト度数分布（複数CSV対応）")
+
+uploaded_files = st.file_uploader("複数のCSVファイルをアップロード", type="csv", accept_multiple_files=True)
+
+if uploaded_files:
+    dfs = []
+    for file in uploaded_files:
+        df = pd.read_csv(file)
+        dfs.append(df)
+    df_all = pd.concat(dfs, ignore_index=True)
+
+    st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
+    
+    summary = analyze_features(df_all)
+    st.dataframe(summary)
