@@ -290,6 +290,7 @@ if "csv_data" in st.session_state:
     st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
 import streamlit as st
 import pandas as pd
+import io
 
 # 役名の一覧（newmade_ が前提）
 made_roles = [
@@ -336,25 +337,37 @@ def analyze_features(df_all):
             })
 
     df_feat = pd.DataFrame(records)
+
+    # 集計
     summary = df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
     avg_shift = df_feat.groupby("feature")["shift"].mean().round(2)
+    std_shift = df_feat.groupby("feature")["shift"].std().round(2)
+
     summary["平均Shift"] = avg_shift
+    summary["標準偏差"] = std_shift
     summary = summary.sort_values("平均Shift", ascending=False)
+
     return summary
 
 # Streamlit UI
-st.title("特徴量別 勝率シフト度数分布（複数CSV対応）")
+st.title("特徴量別 勝率シフト度数分布＋統計表示（複数CSV対応）")
 
 uploaded_files = st.file_uploader("複数のCSVファイルをアップロード", type="csv", accept_multiple_files=True)
 
 if uploaded_files:
-    dfs = []
-    for file in uploaded_files:
-        df = pd.read_csv(file)
-        dfs.append(df)
+    dfs = [pd.read_csv(file) for file in uploaded_files]
     df_all = pd.concat(dfs, ignore_index=True)
 
     st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
-    
+
     summary = analyze_features(df_all)
     st.dataframe(summary)
+
+    # CSV保存
+    csv = summary.to_csv(index=True).encode("utf-8-sig")
+    st.download_button(
+        label="📥 CSVとしてダウンロード",
+        data=csv,
+        file_name="feature_shift_summary.csv",
+        mime="text/csv"
+    )
