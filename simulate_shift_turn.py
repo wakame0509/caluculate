@@ -138,12 +138,13 @@ def is_straight(values):
 
 
 def detect_overcard(hole_cards, board_cards):
-    values = [convert_rank_to_value(c.rank) for c in hole_cards]
+    # 修正版: オーバーカードの誤検出を防ぐ
+    if hole_cards[0].rank != hole_cards[1].rank:
+        return False  # ペアでなければオーバーカードの判定はしない
+
+    pair_rank = convert_rank_to_value(hole_cards[0].rank)
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    if values[0] == values[1]:
-        pair_rank = values[0]
-        return any(v > pair_rank for v in board_values)
-    return False
+    return any(b > pair_rank for b in board_values)
 
 
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
