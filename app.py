@@ -290,7 +290,6 @@ if "csv_data" in st.session_state:
     st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
 import streamlit as st
 import pandas as pd
-import io
 
 # 役名の一覧（newmade_ が前提）
 made_roles = [
@@ -298,7 +297,7 @@ made_roles = [
     "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
 ]
 
-# 度数分布バケットの定義
+# 度数分布バケットの定義（役あり/役なしで分岐）
 def get_bucket(value, is_made):
     if is_made:
         if value <= 0:
@@ -319,7 +318,7 @@ def get_bucket(value, is_made):
             upper = lower + 5
             return f"{lower}〜{upper}%"
 
-# 特徴量ごとの集計
+# 特徴量ごとの集計処理
 def analyze_features(df_all):
     records = []
     for _, row in df_all.iterrows():
@@ -338,7 +337,7 @@ def analyze_features(df_all):
 
     df_feat = pd.DataFrame(records)
 
-    # 集計
+    # 集計処理
     summary = df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
     avg_shift = df_feat.groupby("feature")["shift"].mean().round(2)
     std_shift = df_feat.groupby("feature")["shift"].std().round(2)
@@ -350,7 +349,7 @@ def analyze_features(df_all):
     return summary
 
 # Streamlit UI
-st.title("特徴量別 勝率シフト度数分布＋統計表示（複数CSV対応）")
+st.title("特徴量別 勝率シフト度数分布＋統計（複数CSV対応）")
 
 uploaded_files = st.file_uploader("複数のCSVファイルをアップロード", type="csv", accept_multiple_files=True)
 
@@ -363,10 +362,10 @@ if uploaded_files:
     summary = analyze_features(df_all)
     st.dataframe(summary)
 
-    # CSV保存
-    csv = summary.to_csv(index=True).encode("utf-8-sig")
+    # CSV保存ボタン
+    csv = summary.to_csv(index=True, encoding="utf-8-sig")
     st.download_button(
-        label="📥 CSVとしてダウンロード",
+        label="📥 結果をCSVとして保存",
         data=csv,
         file_name="feature_shift_summary.csv",
         mime="text/csv"
