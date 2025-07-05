@@ -291,13 +291,17 @@ if "csv_data" in st.session_state:
 import streamlit as st
 import pandas as pd
 
+# バケット順（列順固定用）
+BUCKET_ORDER_MADE = ["0%以下"] + [f"{i}〜{i+5}%" for i in range(0, 30, 5)] + ["30%以上"]
+BUCKET_ORDER_NOTMADE = ["-15%以下"] + [f"{i}〜{i+5}%" for i in range(-10, 15, 5)] + ["15%以上"]
+
 # 役名一覧（newmade_ が前提）
 made_roles = [
     "newmade_set", "newmade_straight", "newmade_flush", "newmade_full_house",
     "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
 ]
 
-# バケット定義
+# バケット定義関数
 def get_bucket(value, is_made):
     if is_made:
         if value <= 0:
@@ -305,29 +309,28 @@ def get_bucket(value, is_made):
         elif value > 30:
             return "30%以上"
         else:
-            lower = int(value // 5) * 5
+            lower = (value // 5) * 5
             upper = lower + 5
-            return f"{lower}〜{upper}%"
+            return f"{int(lower)}〜{int(upper)}%"
     else:
         if value <= -15:
             return "-15%以下"
         elif value >= 15:
             return "15%以上"
         else:
-            lower = int(value // 5) * 5
+            lower = (value // 5) * 5
             upper = lower + 5
-            return f"{lower}〜{upper}%"
+            return f"{int(lower)}〜{int(upper)}%"
 
-# 列順固定用ユーティリティ
-def reorder_columns(df, desired_order):
-    existing_cols = [col for col in desired_order if col in df.columns]
-    remaining_cols = [col for col in df.columns if col not in existing_cols]
-    return df[existing_cols + remaining_cols]
+# 列順を固定する関数
+def reorder_columns(df, bucket_order):
+    existing = [col for col in bucket_order if col in df.columns]
+    stats = [col for col in df.columns if col not in bucket_order]
+    return df[existing + stats]
 
-# 特徴量ごとの度数分布・統計計算
+# 特徴量ごとの集計
 def analyze_features(df_all):
-    records_made = []
-    records_notmade = []
+    records_made, records_notmade = [], []
 
     for _, row in df_all.iterrows():
         shift = row["Shift"]
@@ -337,11 +340,7 @@ def analyze_features(df_all):
                 continue
             is_made = feat in made_roles
             bucket = get_bucket(shift, is_made)
-            record = {
-                "feature": feat,
-                "shift": shift,
-                "bucket": bucket
-            }
+            record = {"feature": feat, "shift": shift, "bucket": bucket}
             if is_made:
                 records_made.append(record)
             else:
@@ -350,34 +349,17 @@ def analyze_features(df_all):
     df_made = pd.DataFrame(records_made)
     df_notmade = pd.DataFrame(records_notmade)
 
-    summary_made = (
-        df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        if not df_made.empty else pd.DataFrame()
-    )
-    summary_notmade = (
-        df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        if not df_notmade.empty else pd.DataFrame()
-    )
+    def summarize(df, bucket_order):
+        if df.empty:
+            return pd.DataFrame()
+        summary = df.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        summary["平均Shift"] = df.groupby("feature")["shift"].mean().round(2)
+        summary["標準偏差"] = df.groupby("feature")["shift"].std().round(2)
+        summary = reorder_columns(summary, bucket_order)
+        summary = summary.sort_values("平均Shift", ascending=False)
+        return summary
 
-    if not df_made.empty:
-        summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
-        summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
-        summary_made = summary_made.sort_values("平均Shift", ascending=False)
-
-        # 並び順（made）
-        made_order = ["0%以下"] + [f"{i}〜{i+5}%" for i in range(5, 30, 5)] + ["30%以上"]
-        summary_made = reorder_columns(summary_made, made_order + ["平均Shift", "標準偏差"])
-
-    if not df_notmade.empty:
-        summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
-        summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
-        summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
-
-        # 並び順（notmade）
-        notmade_order = ["-15%以下"] + [f"{i}〜{i+5}%" for i in range(-10, 15, 5)] + ["15%以上"]
-        summary_notmade = reorder_columns(summary_notmade, notmade_order + ["平均Shift", "標準偏差"])
-
-    return summary_made, summary_notmade
+    return summarize(df_made, BUCKET_ORDER_MADE), summarize(df_notmade, BUCKET_ORDER_NOTMADE)
 
 # Streamlit UI
 st.title("特徴量別 勝率シフト度数分布＋統計（役あり／役なし分離）")
