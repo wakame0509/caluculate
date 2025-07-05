@@ -299,9 +299,8 @@ made_roles = [
 BUCKETS_MADE = [
     "0%以下", "0〜5%", "5〜10%", "10〜15%", "15〜20%", "20〜25%", "25〜30%", "30%以上"
 ]
-
 BUCKETS_NOTMADE = [
-    "-15%以下", "-15〜-10%", "-10〜-5%", "-5〜0%", "0〜5%", "5〜10%", "10〜15%", "15%以上"
+    "-15%以下", "-10〜-5%", "-5〜0%", "0〜5%", "5〜10%", "10〜15%", "15%以上"
 ]
 
 # バケット定義
@@ -351,22 +350,27 @@ def analyze_features(df_all):
     df_made = pd.DataFrame(records_made)
     df_notmade = pd.DataFrame(records_notmade)
 
-    # 集計
-    summary_made = pd.DataFrame()
-    summary_notmade = pd.DataFrame()
+    summary_made = (
+        df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        if not df_made.empty else pd.DataFrame()
+    )
+    summary_notmade = (
+        df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        if not df_notmade.empty else pd.DataFrame()
+    )
 
     if not df_made.empty:
-        summary_made = df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        summary_made = summary_made.reindex(columns=BUCKETS_MADE, fill_value=0)
         summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
         summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
+        cols = [col for col in BUCKETS_MADE if col in summary_made.columns]
+        summary_made = summary_made.reindex(columns=cols + ["平均Shift", "標準偏差"])
         summary_made = summary_made.sort_values("平均Shift", ascending=False)
 
     if not df_notmade.empty:
-        summary_notmade = df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        summary_notmade = summary_notmade.reindex(columns=BUCKETS_NOTMADE, fill_value=0)
         summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
         summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
+        cols = [col for col in BUCKETS_NOTMADE if col in summary_notmade.columns]
+        summary_notmade = summary_notmade.reindex(columns=cols + ["平均Shift", "標準偏差"])
         summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
 
     return summary_made, summary_notmade
