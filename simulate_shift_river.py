@@ -14,6 +14,13 @@ def convert_rank_to_value(rank):
         return rank
     return rank_map[str(rank)]
 
+def is_overcard_river(hole_cards, river_card):
+    if hole_cards[0].rank != hole_cards[1].rank:
+        return False
+    pair_rank = convert_rank_to_value(hole_cards[0].rank)
+    river_rank = convert_rank_to_value(river_card.rank)
+    return river_rank > pair_rank
+
 def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(c) if isinstance(c, str) else c for c in flop_cards_str]
@@ -38,8 +45,8 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
             pattern_feats = classify_flop_turn_pattern(flop_cards, turn_card, river)
             features.extend([f"newmade_{feat}" for feat in pattern_feats])
 
-            # ✅ 修正済：リバーにオーバーカードが含まれていれば常に付与
-            if detect_overcard(hole_cards, full_board):
+            # 修正：5枚目がオーバーカードだったら付与（フロップやターンは無視）
+            if is_overcard_river(hole_cards, river):
                 features.append("newmade_overcard")
 
         results.append({
@@ -123,14 +130,6 @@ def is_straight(values):
             return True
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
-    return False
-
-def detect_overcard(hole_cards, board_cards):
-    values = [convert_rank_to_value(c.rank) for c in hole_cards]
-    board_values = [convert_rank_to_value(c.rank) for c in board_cards]
-    if values[0] == values[1]:
-        pair_rank = values[0]
-        return any(b > pair_rank for b in board_values)
     return False
 
 def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
