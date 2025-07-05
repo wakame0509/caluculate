@@ -318,6 +318,12 @@ def get_bucket(value, is_made):
             upper = lower + 5
             return f"{lower}〜{upper}%"
 
+# 列順固定用ユーティリティ
+def reorder_columns(df, desired_order):
+    existing_cols = [col for col in desired_order if col in df.columns]
+    remaining_cols = [col for col in df.columns if col not in existing_cols]
+    return df[existing_cols + remaining_cols]
+
 # 特徴量ごとの度数分布・統計計算
 def analyze_features(df_all):
     records_made = []
@@ -358,10 +364,18 @@ def analyze_features(df_all):
         summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
         summary_made = summary_made.sort_values("平均Shift", ascending=False)
 
+        # 並び順（made）
+        made_order = ["0%以下"] + [f"{i}〜{i+5}%" for i in range(5, 30, 5)] + ["30%以上"]
+        summary_made = reorder_columns(summary_made, made_order + ["平均Shift", "標準偏差"])
+
     if not df_notmade.empty:
         summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
         summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
         summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
+
+        # 並び順（notmade）
+        notmade_order = ["-15%以下"] + [f"{i}〜{i+5}%" for i in range(-10, 15, 5)] + ["15%以上"]
+        summary_notmade = reorder_columns(summary_notmade, notmade_order + ["平均Shift", "標準偏差"])
 
     return summary_made, summary_notmade
 
