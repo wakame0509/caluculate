@@ -285,7 +285,13 @@ if st.button("CSV保存"):
 
     df = pd.DataFrame(csv_rows)
     st.session_state["csv_data"] = df.to_csv(index=False)
-
+if "csv_data" in st.session_state:
+    st.download_button(
+        label="📥 結果をCSVでダウンロード",
+        data=st.session_state["csv_data"],
+        file_name="shift_results.csv",
+        mime="text/csv"
+    )
 import streamlit as st
 import pandas as pd
 
