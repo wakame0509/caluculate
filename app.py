@@ -288,3 +288,31 @@ if st.button("CSV保存"):
 
 if "csv_data" in st.session_state:
     st.download_button("CSVダウンロード", st.session_state["csv_data"], "shift_results.csv", "text/csv")
+import pandas as pd
+
+st.header("特徴量別 Shift 分析（CSV）")
+
+uploaded_csv = st.file_uploader("Shift結果のCSVファイルをアップロード", type="csv")
+if uploaded_csv is not None:
+    df = pd.read_csv(uploaded_csv)
+
+    # 特徴量をリストに変換
+    df["Features_list"] = df["Features"].fillna("").apply(lambda x: [f.strip() for f in x.split(",") if f.strip()])
+
+    # 各特徴量ごとの Shift 値を展開
+    feature_shift_data = []
+    for _, row in df.iterrows():
+        for feat in row["Features_list"]:
+            feature_shift_data.append({
+                "Feature": feat,
+                "Shift": row["Shift"]
+            })
+
+    # DataFrame に変換して集計
+    feature_df = pd.DataFrame(feature_shift_data)
+    summary = feature_df.groupby("Feature").Shift.agg(
+        Count="count", Average_Shift="mean"
+    ).sort_values("Average_Shift", ascending=False)
+
+    st.subheader("特徴量別の平均 Shift と出現回数")
+    st.dataframe(summary.round(2))
