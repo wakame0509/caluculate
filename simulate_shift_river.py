@@ -28,17 +28,15 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
     results = []
     for river in river_candidates:
         full_board = board4 + [river]
-        river_winrate = simulate_vs_random(hole_cards, [river], board4, trials_per_river)
+        river_winrate = simulate_vs_random(hole_cards, full_board, trials_per_river)
         shift = river_winrate - static_turn_winrate
 
         features = []
         made_after = detect_made_hand(hole_cards, full_board)
 
-        # newmade_hand の検出（ターン→リバーで役が新しく完成）
         if made_after != made_before and made_after[0] != "high_card":
             features.append(f"newmade_{made_after[0]}")
         else:
-            # 役が変化していなければ、特徴量ベースで分析
             pattern_feats = classify_flop_turn_pattern(flop_cards, turn_card, river)
             features.extend([f"newmade_{feat}" for feat in pattern_feats])
             if detect_overcard(hole_cards, full_board):
@@ -68,9 +66,8 @@ def generate_rivers(board4, hole_cards):
     return [card for card in deck if card not in used_cards]
 
 
-def simulate_vs_random(my_hand, river_cards, board4, iterations=45):
-    used_cards = set(my_hand + board4 + river_cards)
-    full_board = board4 + river_cards
+def simulate_vs_random(my_hand, full_board, iterations=45):
+    used_cards = set(my_hand + full_board)
     wins = ties = 0
 
     for _ in range(iterations):
@@ -133,7 +130,6 @@ def is_straight(values):
 
 
 def detect_overcard(hole_cards, board_cards):
-    # 正しい判定：ペアのときのみ、ボードにそれより高いカードがあるか確認
     values = [convert_rank_to_value(c.rank) for c in hole_cards]
     board_values = [convert_rank_to_value(c.rank) for c in board_cards]
     if values[0] == values[1]:
