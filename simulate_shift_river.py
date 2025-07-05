@@ -23,10 +23,6 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
     river_candidates = generate_rivers(board4, hole_cards)
     made_before = detect_made_hand(hole_cards, board4)
 
-    # フロップ・ターン時点でオーバーカードが出ていたか記録
-    overcard_on_flop = detect_overcard(hole_cards, flop_cards)
-    overcard_on_turn = detect_overcard(hole_cards, board4)
-
     results = []
     for river in river_candidates:
         full_board = board4 + [river]
@@ -42,9 +38,8 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
             pattern_feats = classify_flop_turn_pattern(flop_cards, turn_card, river)
             features.extend([f"newmade_{feat}" for feat in pattern_feats])
 
-            # リバーで新たにオーバーカードが出た場合のみ付与
-            overcard_on_river = detect_overcard(hole_cards, full_board)
-            if overcard_on_river and not overcard_on_turn and not overcard_on_flop:
+            # ✅ 修正済：リバーにオーバーカードが含まれていれば常に付与
+            if detect_overcard(hole_cards, full_board):
                 features.append("newmade_overcard")
 
         results.append({
