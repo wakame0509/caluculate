@@ -36,12 +36,11 @@ selected_hands = st.multiselect("複数ハンドを選択してください", AL
 if mode == "自動生成モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
-
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
-        deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-        batch_flop = []
-        batch_turn = []
-        batch_river = []
+    deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+    batch_flop = {}
+    batch_turn = {}
+    batch_river = {}
 
     for hand in selected_hands:
         with st.spinner(f"ハンド {hand} を処理中..."):
@@ -77,6 +76,7 @@ if mode == "自動生成モード":
     st.session_state["auto_flop"] = batch_flop
     st.session_state["auto_turn"] = batch_turn
     st.session_state["auto_river"] = batch_river
+    
 elif mode == "手動選択モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_input = st.text_input("フロップ（例: Ah Ks Td）")
