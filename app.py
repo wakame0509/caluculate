@@ -28,14 +28,10 @@ if mode == "プリフロップ勝率生成":
         st.success("計算完了 ✅")
         st.download_button("CSVダウンロード", result_df.to_csv(index=False), "preflop_winrates.csv", "text/csv")
     st.stop()
-
 ALL_HANDS = all_starting_hands
 
-# hand_str が ALL_HANDS に含まれているか確認し、デフォルト値として使用
-default_hand = hand_str if hand_str in ALL_HANDS else ALL_HANDS[0]
-
-# 複数選択可能な multiselect
-selected_hands = st.multiselect("複数ハンドを選択してください", ALL_HANDS, default=[default_hand])
+# 複数ハンドを自由に選択できるように表示（初期選択なし）
+selected_hands = st.multiselect("複数ハンドを選択してください", ALL_HANDS, default=[])
 
 if mode == "自動生成モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
