@@ -6,18 +6,18 @@ def classify_flop_turn_pattern(flop, turn, river=None):
     if river is not None:
         board.append(river)
 
-    # None が含まれているときはエラー回避のため空リスト返す
     if any(card is None for card in board):
         return []
 
     suits = [str(card)[1] for card in board]
-    ranks = [str(card)[0] for card in board]  # 安全なランク取得
+    ranks = [str(card)[0] for card in board]
     rank_vals = sorted([convert_rank_to_value(r) for r in ranks])
-    unique_vals = sorted(set(rank_vals))
+    rank_set = set(rank_vals)
+    unique_vals = sorted(rank_set)
 
     features = []
 
-    # --- スート系分類 ---
+    # --- スート系 ---
     suit_counts = {s: suits.count(s) for s in set(suits)}
     max_suit_count = max(suit_counts.values())
 
@@ -38,17 +38,17 @@ def classify_flop_turn_pattern(flop, turn, river=None):
     # --- ストレートドロー・完成 ---
     for i in range(2, 11):
         window = set(range(i, i + 5))
-        overlap = window.intersection(rank_vals)
+        overlap = window.intersection(rank_set)
         if len(overlap) >= 4:
             features.append("straight_draw")
-        if window.issubset(set(rank_vals)):
+        if window.issubset(rank_set):
             features.append("straight_complete")
             break
 
-    # --- 1枚足りない4連ガットショット ---
+    # --- ガットショット4枚 ---
     for i in range(len(unique_vals) - 3):
         subset = unique_vals[i:i+4]
-        if subset[-1] - subset[0] == 4 and len(subset) == 4:
+        if subset[-1] - subset[0] == 4:
             features.append("gutshot_draw_4")
 
     # --- 3連番チェック ---
