@@ -41,7 +41,7 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
         features = []
         made_after = detect_made_hand(hole_cards, full_board)
 
-        if made_after != made_before and made_after[0] != "high_card":
+        if made_after[0] != made_before[0] and made_after[0] != "high_card":
             features.append(f"newmade_{made_after[0]}")
         else:
             feats_after = classify_flop_turn_pattern(flop_cards, turn_card, river)
