@@ -37,45 +37,45 @@ if mode == "自動生成モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
-    deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-    batch_flop = {}
-    batch_turn = {}
-    batch_river = {}
+        deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+        batch_flop = {}
+        batch_turn = {}
+        batch_river = {}
 
-    for hand in selected_hands:
-        with st.spinner(f"ハンド {hand} を処理中..."):
-            # フロップを生成
-            flops_str = []
-            while len(flops_str) < flop_count:
-                sample = random.sample(deck_full, 3)
-                if sample not in flops_str:
-                    flops_str.append(sample)
+        for hand in selected_hands:
+            with st.spinner(f"ハンド {hand} を処理中..."):
+                # フロップを生成
+                flops_str = []
+                while len(flops_str) < flop_count:
+                    sample = random.sample(deck_full, 3)
+                    if sample not in flops_str:
+                        flops_str.append(sample)
 
-            flop_results, turn_results, river_results = [], [], []
-            static_wr_pf = get_static_preflop_winrate(hand)
+                flop_results, turn_results, river_results = [], [], []
+                static_wr_pf = get_static_preflop_winrate(hand)
 
-            for idx, flop_cards_str in enumerate(flops_str):
-                flop_cards = [eval7.Card(c) for c in flop_cards_str]
-                flop_wr, shift_feats = run_shift_flop(hand, flop_cards, trials)
-                all_t, top10_t, bottom10_t = run_shift_turn(hand, flop_cards, flop_wr, trials)
+                for idx, flop_cards_str in enumerate(flops_str):
+                    flop_cards = [eval7.Card(c) for c in flop_cards_str]
+                    flop_wr, shift_feats = run_shift_flop(hand, flop_cards, trials)
+                    all_t, top10_t, bottom10_t = run_shift_turn(hand, flop_cards, flop_wr, trials)
 
-                used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand)]
-                remaining = [c for c in deck_full if c not in used_cards]
-                random_turn = random.choice(remaining)
-                turn_wr = next((item['winrate'] for item in all_t if item['turn_card'] == random_turn), flop_wr)
-                all_r, top10_r, bottom10_r = run_shift_river(hand, flop_cards, random_turn, turn_wr, trials)
+                    used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand)]
+                    remaining = [c for c in deck_full if c not in used_cards]
+                    random_turn = random.choice(remaining)
+                    turn_wr = next((item['winrate'] for item in all_t if item['turn_card'] == random_turn), flop_wr)
+                    all_r, top10_r, bottom10_r = run_shift_river(hand, flop_cards, random_turn, turn_wr, trials)
 
-                flop_results.append((flop_cards_str, flop_wr, shift_feats))
-                turn_results.append((flop_cards_str, all_t, top10_t, bottom10_t))
-                river_results.append((flop_cards_str, random_turn, all_r, top10_r, bottom10_r))
+                    flop_results.append((flop_cards_str, flop_wr, shift_feats))
+                    turn_results.append((flop_cards_str, all_t, top10_t, bottom10_t))
+                    river_results.append((flop_cards_str, random_turn, all_r, top10_r, bottom10_r))
 
-            batch_flop[hand] = flop_results
-            batch_turn[hand] = turn_results
-            batch_river[hand] = river_results
+                batch_flop[hand] = flop_results
+                batch_turn[hand] = turn_results
+                batch_river[hand] = river_results
 
-    st.session_state["auto_flop"] = batch_flop
-    st.session_state["auto_turn"] = batch_turn
-    st.session_state["auto_river"] = batch_river
+        st.session_state["auto_flop"] = batch_flop
+        st.session_state["auto_turn"] = batch_turn
+        st.session_state["auto_river"] = batch_river
     
 elif mode == "手動選択モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
