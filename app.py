@@ -30,14 +30,18 @@ if mode == "プリフロップ勝率生成":
     st.stop()
 
 ALL_HANDS = all_starting_hands
-selected_hands = st.multiselect("複数ハンドを選択してください", ALL_HANDS, default=["AhAd"])
+
+# hand_str が ALL_HANDS に含まれているか確認し、デフォルト値として使用
+default_hand = hand_str if hand_str in ALL_HANDS else ALL_HANDS[0]
+
+# 複数選択可能な multiselect
+selected_hands = st.multiselect("複数ハンドを選択してください", ALL_HANDS, default=[default_hand])
 
 if mode == "自動生成モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
-        selected_hands = st.multiselect("一括実行するハンドを選択", ALL_HANDS, default=[hand_str])
         deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
         batch_flop, batch_turn, batch_river = {}, {}, {}
 
