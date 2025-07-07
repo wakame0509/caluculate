@@ -301,6 +301,9 @@ made_roles = [
     "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
 ]
 
+# 除外対象の特徴量（スート系など）
+excluded_features = {"newmade_rainbow", "newmade_two_tone", "newmade_monotone"}
+
 # 表示順を固定するためのバケットリスト
 BUCKETS_MADE = [
     "0%以下", "0〜5%", "5〜10%", "10〜15%", "15〜20%", "20〜25%", "25〜30%", "30%以上"
@@ -337,15 +340,17 @@ def analyze_features(df_all):
 
     for _, row in df_all.iterrows():
         shift = row["Shift"]
+        winrate = row["Winrate"]
         features = str(row["Features"]).split(", ")
         for feat in features:
-            if not feat.startswith("newmade_"):
+            if not feat.startswith("newmade_") or feat in excluded_features:
                 continue
             is_made = feat in made_roles
             bucket = get_bucket(shift, is_made)
             record = {
                 "feature": feat,
                 "shift": shift,
+                "winrate": winrate,
                 "bucket": bucket
             }
             if is_made:
@@ -368,15 +373,17 @@ def analyze_features(df_all):
     if not df_made.empty:
         summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
         summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
+        summary_made["平均Winrate"] = df_made.groupby("feature")["winrate"].mean().round(2)
         cols = [col for col in BUCKETS_MADE if col in summary_made.columns]
-        summary_made = summary_made.reindex(columns=cols + ["平均Shift", "標準偏差"])
+        summary_made = summary_made.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_made = summary_made.sort_values("平均Shift", ascending=False)
 
     if not df_notmade.empty:
         summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
         summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
+        summary_notmade["平均Winrate"] = df_notmade.groupby("feature")["winrate"].mean().round(2)
         cols = [col for col in BUCKETS_NOTMADE if col in summary_notmade.columns]
-        summary_notmade = summary_notmade.reindex(columns=cols + ["平均Shift", "標準偏差"])
+        summary_notmade = summary_notmade.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
 
     return summary_made, summary_notmade
