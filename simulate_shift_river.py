@@ -27,10 +27,12 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
     turn_card = eval7.Card(turn_card_str) if isinstance(turn_card_str, str) else turn_card_str
     board4 = flop_cards + [turn_card]
 
-    river_candidates = generate_rivers(board4, hole_cards)
+    feats_before = classify_flop_turn_pattern(flop_cards, turn_card)
     made_before = detect_made_hand(hole_cards, board4)
 
+    river_candidates = generate_rivers(board4, hole_cards)
     results = []
+
     for river in river_candidates:
         full_board = board4 + [river]
         river_winrate = simulate_vs_random(hole_cards, [river], board4, trials_per_river)
@@ -42,10 +44,10 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
         if made_after != made_before and made_after[0] != "high_card":
             features.append(f"newmade_{made_after[0]}")
         else:
-            pattern_feats = classify_flop_turn_pattern(flop_cards, turn_card, river)
-            features.extend([f"newmade_{feat}" for feat in pattern_feats])
+            feats_after = classify_flop_turn_pattern(flop_cards, turn_card, river)
+            new_feats = [f for f in feats_after if f not in feats_before]
+            features.extend([f"newmade_{f}" for f in new_feats])
 
-            # 修正：5枚目がオーバーカードだったら付与（フロップやターンは無視）
             if is_overcard_river(hole_cards, river):
                 features.append("newmade_overcard")
 
