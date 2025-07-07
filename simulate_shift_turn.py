@@ -19,49 +19,6 @@ def is_overcard_turn(hole_cards, turn_card):
     turn_rank = convert_rank_to_value(turn_card.rank)
     return turn_rank > pair_rank
 
-def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=20):
-    hole_cards = hand_str_to_cards(hand_str)
-    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
-    turn_candidates = generate_turns(flop_cards, hole_cards)
-
-    made_before = detect_made_hand(hole_cards, flop_cards)
-
-    results = []
-    for turn in turn_candidates:
-        board4 = flop_cards + [turn]
-        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
-        shift = winrate - static_winrate
-
-        features = []
-        made_after = detect_made_hand(hole_cards, board4)
-
-        if made_after != made_before and made_after[0] != "high_card":
-            features.append(f"newmade_{made_after[0]}")
-        else:
-            board_feats = classify_flop_turn_pattern(flop_cards, turn)
-            features.extend([f"newmade_{f}" for f in board_feats])
-
-            # オーバーカード判定（ターン1枚のみで）
-            if is_overcard_turn(hole_cards, turn):
-                features.append("newmade_overcard")
-
-        results.append({
-            'turn_card': str(turn),
-            'winrate': round(winrate, 2),
-            'shift': round(shift, 2),
-            'features': features,
-            'hand_rank': made_after[0] if made_after else '―'
-        })
-
-    df = pd.DataFrame(results)
-    df_sorted = df.sort_values(by='shift', ascending=False)
-    df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
-
-    results_sorted = df_sorted.to_dict(orient='records')
-    top10 = results_sorted[:10]
-    bottom10 = results_sorted[-10:]
-    return results_sorted, top10, bottom10
-
 def generate_turns(flop, hole_cards):
     used = set(flop + hole_cards)
     deck = list(eval7.Deck())
@@ -136,6 +93,50 @@ def is_straight(values):
     if set([14, 2, 3, 4, 5]).issubset(set(values)):
         return True
     return False
+
+def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=20):
+    hole_cards = hand_str_to_cards(hand_str)
+    flop_cards = [eval7.Card(str(c)) for c in flop_cards]
+    turn_candidates = generate_turns(flop_cards, hole_cards)
+
+    made_before = detect_made_hand(hole_cards, flop_cards)
+    feats_before = classify_flop_turn_pattern(flop_cards, turn=None)
+
+    results = []
+    for turn in turn_candidates:
+        board4 = flop_cards + [turn]
+        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
+        shift = winrate - static_winrate
+
+        features = []
+        made_after = detect_made_hand(hole_cards, board4)
+
+        if made_after != made_before and made_after[0] != "high_card":
+            features.append(f"newmade_{made_after[0]}")
+        else:
+            feats_after = classify_flop_turn_pattern(flop_cards, turn)
+            new_feats = [f for f in feats_after if f not in feats_before]
+            features.extend([f"newmade_{f}" for f in new_feats])
+
+            if is_overcard_turn(hole_cards, turn):
+                features.append("newmade_overcard")
+
+        results.append({
+            'turn_card': str(turn),
+            'winrate': round(winrate, 2),
+            'shift': round(shift, 2),
+            'features': features,
+            'hand_rank': made_after[0] if made_after else '―'
+        })
+
+    df = pd.DataFrame(results)
+    df_sorted = df.sort_values(by='shift', ascending=False)
+    df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
+
+    results_sorted = df_sorted.to_dict(orient='records')
+    top10 = results_sorted[:10]
+    bottom10 = results_sorted[-10:]
+    return results_sorted, top10, bottom10
 
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
