@@ -112,7 +112,10 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         made_after = detect_made_hand(hole_cards, board4)
 
         if made_after[0] != made_before[0] and made_after[0] != "high_card":
+            # 新しい役が完成した場合 → newmade_役名 のみ
             features.append(f"newmade_{made_after[0]}")
+        else:
+            # 役が変化していない場合のみ → 特徴量とオーバーカードを追加
             feats_after = classify_flop_turn_pattern(flop_cards, turn)
             new_feats = [f for f in feats_after if f not in feats_before]
             features.extend([f"newmade_{f}" for f in new_feats])
@@ -136,6 +139,3 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-
-def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
-    return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
