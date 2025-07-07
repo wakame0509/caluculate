@@ -42,8 +42,10 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
         made_after = detect_made_hand(hole_cards, full_board)
 
         if made_after[0] != made_before[0] and made_after[0] != "high_card":
+            # 新しい役が完成したとき → 役名のみ付与
             features.append(f"newmade_{made_after[0]}")
         else:
+            # 役が変わっていないとき → 特徴量のみ付与（newmade_overcard含む）
             feats_after = classify_flop_turn_pattern(flop_cards, turn_card, river)
             new_feats = [f for f in feats_after if f not in feats_before]
             features.extend([f"newmade_{f}" for f in new_feats])
@@ -67,7 +69,6 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-
 def generate_rivers(board4, hole_cards):
     used_cards = set(board4 + hole_cards)
     deck = list(eval7.Deck())
