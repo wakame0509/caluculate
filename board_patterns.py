@@ -57,9 +57,4 @@ def classify_flop_turn_pattern(flop, turn, river=None):
             features.append("three_straight")
             break
 
-    # --- ボードペア ---
-    rank_counts = {r: ranks.count(r) for r in set(ranks)}
-    if any(count >= 2 for count in rank_counts.values()):
-        features.append("paired_board")
-
-    return features
+    return features  # ペアボード判定は完全削除
