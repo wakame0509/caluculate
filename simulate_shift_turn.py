@@ -111,9 +111,8 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         features = []
         made_after = detect_made_hand(hole_cards, board4)
 
-        if made_after != made_before and made_after[0] != "high_card":
+        if made_after[0] != made_before[0] and made_after[0] != "high_card":
             features.append(f"newmade_{made_after[0]}")
-        else:
             feats_after = classify_flop_turn_pattern(flop_cards, turn)
             new_feats = [f for f in feats_after if f not in feats_before]
             features.extend([f"newmade_{f}" for f in new_feats])
