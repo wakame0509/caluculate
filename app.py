@@ -37,9 +37,9 @@ if mode == "自動生成モード":
     flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
-    selected_hands = st.multiselect("一括実行するハンドを選択", ALL_HANDS, default=[hand_str])
-    deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-    batch_flop, batch_turn, batch_river = {}, {}, {}
+        selected_hands = st.multiselect("一括実行するハンドを選択", ALL_HANDS, default=[hand_str])
+        deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
+        batch_flop, batch_turn, batch_river = {}, {}, {}
 
     for hand in selected_hands:
         with st.spinner(f"ハンド {hand} を処理中..."):
