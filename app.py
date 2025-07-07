@@ -39,7 +39,9 @@ if mode == "自動生成モード":
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
         deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
-        batch_flop, batch_turn, batch_river = {}, {}, {}
+        batch_flop = []
+        batch_turn = []
+        batch_river = []
 
     for hand in selected_hands:
         with st.spinner(f"ハンド {hand} を処理中..."):
