@@ -26,7 +26,7 @@ def generate_rivers(board4, hole_cards):
     deck = list(eval7.Deck())
     return [card for card in deck if card not in used_cards]
 
-def simulate_vs_random(my_hand, river_cards, board4, iterations=45):
+def simulate_vs_random(my_hand, river_cards, board4, iterations=200):
     used_cards = set(my_hand + board4 + river_cards)
     full_board = board4 + river_cards
     wins = ties = 0
@@ -87,7 +87,7 @@ def is_straight(values):
         return True
     return False
 
-def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
+def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=200):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(c) if isinstance(c, str) else c for c in flop_cards_str]
     turn_card = eval7.Card(turn_card_str) if isinstance(turn_card_str, str) else turn_card_str
