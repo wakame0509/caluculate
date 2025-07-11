@@ -135,5 +135,5 @@ def simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, sta
     return results_sorted, top10, bottom10
 
 # ✅ ← これがないとImportErrorになる
-def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=45):
+def run_shift_river(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river=200):
     return simulate_shift_river_exhaustive(hand_str, flop_cards_str, turn_card_str, static_turn_winrate, trials_per_river)
