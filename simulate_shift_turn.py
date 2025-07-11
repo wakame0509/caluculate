@@ -139,5 +139,5 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=20):
+def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=200):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
