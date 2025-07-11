@@ -76,7 +76,122 @@ if mode == "自動生成モード":
         st.session_state["auto_flop"] = batch_flop
         st.session_state["auto_turn"] = batch_turn
         st.session_state["auto_river"] = batch_river
-    
+        # 実行ボタンの下に保存・ダウンロードボタンを追加
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("CSV保存（上部）"):
+                csv_rows = []
+
+                for hand_str, flop_list in st.session_state.get("auto_flop", {}).items():
+                    static_wr_pf = round(get_static_preflop_winrate(hand_str), 2)
+
+                    csv_rows.append({
+                        "Stage": "HandInfo",
+                        "Flop": "",
+                        "Turn": "",
+                        "Detail": "",
+                        "Shift": "",
+                        "Winrate": static_wr_pf,
+                        "Features": "",
+                        "Role": "",
+                        "Hand": hand_str
+                    })
+
+                    for i, (flop_cards_str, static_wr_flop, shift_feats) in enumerate(flop_list):
+                        flop_str = ' '.join(flop_cards_str)
+
+                        csv_rows.append({
+                            "Stage": f"=== Flop {i+1}: {flop_str} ===",
+                            "Flop": "",
+                            "Turn": "",
+                            "Detail": "",
+                            "Shift": "",
+                            "Winrate": "",
+                            "Features": "",
+                            "Role": "",
+                            "Hand": hand_str
+                        })
+
+                        # ShiftFlop
+                        for f, delta in shift_feats.items():
+                            csv_rows.append({
+                                "Stage": "ShiftFlop",
+                                "Flop": flop_str,
+                                "Turn": "",
+                                "Detail": f,
+                                "Shift": round(delta, 2),
+                                "Winrate": round(static_wr_pf + delta, 2),
+                                "Features": "",
+                                "Role": "",
+                                "Hand": hand_str
+                            })
+
+                        # ShiftTurn
+                        turn_data = st.session_state["auto_turn"][hand_str][i]
+                        turn_items = turn_data[1]
+                        seen_turn = set()
+                        for item in turn_items:
+                            tc = item["turn_card"]
+                            if tc in seen_turn:
+                                continue
+                            seen_turn.add(tc)
+                            made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
+                            feats = [f for f in item["features"] if f.startswith("newmade_")]
+                            if not feats:
+                                feats = ["―"]
+                            shift = round(item["winrate"] - static_wr_flop, 2)
+                            csv_rows.append({
+                                "Stage": "ShiftTurn",
+                                "Flop": flop_str,
+                                "Turn": tc,
+                                "Detail": tc,
+                                "Shift": shift,
+                                "Winrate": round(item["winrate"], 2),
+                                "Features": ', '.join(feats),
+                                "Role": made,
+                                "Hand": hand_str
+                            })
+
+                        # ShiftRiver
+                        river_data = st.session_state["auto_river"][hand_str][i]
+                        turn_card = river_data[1]
+                        river_items = river_data[2]
+                        turn_wr = next((t["winrate"] for t in turn_items if t["turn_card"] == turn_card), static_wr_flop)
+                        seen_river = set()
+                        for item in river_items:
+                            rc = item["river_card"]
+                            if rc in seen_river:
+                                continue
+                            seen_river.add(rc)
+                            made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
+                            feats = [f for f in item["features"] if f.startswith("newmade_")]
+                            if not feats:
+                                feats = ["―"]
+                            shift = round(item["winrate"] - turn_wr, 2)
+                            csv_rows.append({
+                                "Stage": "ShiftRiver",
+                                "Flop": flop_str,
+                                "Turn": turn_card,
+                                "Detail": rc,
+                                "Shift": shift,
+                                "Winrate": round(item["winrate"], 2),
+                                "Features": ', '.join(feats),
+                                "Role": made,
+                                "Hand": hand_str
+                            })
+
+                df = pd.DataFrame(csv_rows)
+                st.session_state["csv_data"] = df.to_csv(index=False)
+                st.success("CSVをセッションに保存しました")
+
+        with col2:
+            if "csv_data" in st.session_state:
+                st.download_button(
+                    label="📥 ダウンロード（上部）",
+                    data=st.session_state["csv_data"],
+                    file_name="shift_results.csv",
+                    mime="text/csv"
+                )    
 elif mode == "手動選択モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
     flop_input = st.text_input("フロップ（例: Ah Ks Td）")
