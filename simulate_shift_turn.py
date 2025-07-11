@@ -24,7 +24,7 @@ def generate_turns(flop, hole_cards):
     deck = list(eval7.Deck())
     return [card for card in deck if card not in used]
 
-def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=200):
+def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=1000):
     used_cards = set(my_hand + flop_cards + turn_cards)
     wins = ties = 0
     full_board_base = flop_cards + turn_cards
@@ -94,7 +94,7 @@ def is_straight(values):
         return True
     return False
 
-def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=200):
+def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=1000):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
     turn_candidates = generate_turns(flop_cards, hole_cards)
@@ -139,5 +139,5 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=200):
+def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=1000):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
