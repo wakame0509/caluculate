@@ -434,17 +434,17 @@ made_roles = [
 # 除外対象の特徴量（スート系など）
 excluded_features = {"newmade_rainbow", "newmade_two_tone", "newmade_monotone"}
 
-# 表示順を固定するためのバケットリスト（全て「以上〜未満」形式に統一）
+# 表示順を固定するためのバケット（全て「以上〜未満」形式・半角マイナス）
 BUCKETS_MADE = [
     "0%未満", "0%以上〜5%未満", "5%以上〜10%未満", "10%以上〜15%未満",
     "15%以上〜20%未満", "20%以上〜25%未満", "25%以上〜30%未満", "30%以上"
 ]
 BUCKETS_NOTMADE = [
-    "−15%未満", "−15%以上〜−10%未満", "−10%以上〜−5%未満", "−5%以上〜0%未満",
+    "-15%未満", "-15%以上〜-10%未満", "-10%以上〜-5%未満", "-5%以上〜0%未満",
     "0%以上〜5%未満", "5%以上〜10%未満", "10%以上〜15%未満", "15%以上"
 ]
 
-# バケット定義関数（境界を明確に扱う）
+# バケット分類関数
 def get_bucket(value, is_made):
     if is_made:
         if value < 0:
@@ -457,7 +457,7 @@ def get_bucket(value, is_made):
             return f"{lower}%以上〜{upper}%未満"
     else:
         if value < -15:
-            return "−15%未満"
+            return "-15%未満"
         elif value >= 15:
             return "15%以上"
         else:
@@ -465,7 +465,7 @@ def get_bucket(value, is_made):
             upper = lower + 5
             return f"{lower}%以上〜{upper}%未満"
 
-# 特徴量ごとの度数分布・統計計算
+# 特徴量の統計処理
 def analyze_features(df_all):
     records_made = []
     records_notmade = []
