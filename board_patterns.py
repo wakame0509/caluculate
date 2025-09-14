@@ -32,18 +32,13 @@ def classify_flop_turn_pattern(flop, turn, river=None):
         features.append("three_flush")
     if max_suit_count >= 4:
         features.append("flush_draw")
-    if max_suit_count == 5:
-        features.append("flush_complete")
+    # flush_complete は削除
 
-    # --- ストレートドロー・完成 ---
-    for i in range(2, 11):
-        window = set(range(i, i + 5))
-        overlap = window.intersection(rank_set)
-        if len(overlap) >= 4:
+    # --- ストレートドロー（4連番のみ） ---
+    for i in range(len(unique_vals) - 3):
+        subset = unique_vals[i:i+4]
+        if subset[-1] - subset[0] == 3:  # 4連番
             features.append("straight_draw")
-        if window.issubset(rank_set):
-            features.append("straight_complete")
-            break
 
     # --- ガットショット4枚 ---
     for i in range(len(unique_vals) - 3):
