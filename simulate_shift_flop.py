@@ -110,9 +110,11 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
         shift = winrate - static_wr
 
         features = []
-        made_hand = detect_made_hand(hole_cards, flop)
-        if made_hand != "high_card":
-            features.append(f"newmade_{made_hand}")
+        made_preflop = detect_made_hand(hole_cards, [])
+        made_flop = detect_made_hand(hole_cards, flop)
+
+        if made_flop != made_preflop and made_flop != "high_card":
+            features.append(f"newmade_{made_flop}")
         else:
             new_feats = classify_flop_turn_pattern(flop, turn=None)
             features.extend(["newmade_" + f for f in new_feats])
@@ -141,9 +143,11 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
         shift = winrate - static_wr
 
         features = []
-        made_hand = detect_made_hand(hole_cards, flop)
-        if made_hand != "high_card":
-            features.append(f"newmade_{made_hand}")
+        made_preflop = detect_made_hand(hole_cards, [])
+        made_flop = detect_made_hand(hole_cards, flop)
+
+        if made_flop != made_preflop and made_flop != "high_card":
+            features.append(f"newmade_{made_flop}")
         else:
             new_feats = classify_flop_turn_pattern(flop, turn=None)
             features.extend(["newmade_" + f for f in new_feats])
