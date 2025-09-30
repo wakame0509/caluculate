@@ -94,6 +94,38 @@ def is_straight(values):
         return True
     return False
 
+# --- 役に何枚ホールカードが絡んでいるかを判定 ---
+def count_holecard_involvement(hole_cards, hand_rank, board_cards):
+    hc_vals = [convert_rank_to_value(c.rank) for c in hole_cards]
+    all_vals = [convert_rank_to_value(c.rank) for c in (hole_cards + board_cards)]
+    rank_counts = {v: all_vals.count(v) for v in set(all_vals)}
+
+    if hand_rank == "pair":
+        return sum(rank_counts[v] >= 2 for v in hc_vals)
+    if hand_rank == "two_pair":
+        return sum(rank_counts[v] >= 2 for v in hc_vals)
+    if hand_rank == "set":
+        return sum(rank_counts[v] >= 3 for v in hc_vals)
+    if hand_rank == "quads":
+        return sum(rank_counts[v] == 4 for v in hc_vals)
+    if hand_rank == "full_house":
+        return sum(rank_counts[v] >= 2 for v in hc_vals)
+    if hand_rank in ["straight", "straight_flush"]:
+        uniq = sorted(set(all_vals))
+        for i in range(len(uniq) - 4):
+            window = set(uniq[i:i+5])
+            if len(window) == 5:
+                return sum(v in window for v in hc_vals)
+        if set([14, 2, 3, 4, 5]).issubset(set(uniq)):
+            return sum(v in [14, 2, 3, 4, 5] for v in hc_vals)
+    if hand_rank in ["flush", "straight_flush"]:
+        suits = [c.suit for c in (hole_cards + board_cards)]
+        for s in set(suits):
+            suited = [convert_rank_to_value(c.rank) for c in (hole_cards + board_cards) if c.suit == s]
+            if len(suited) >= 5:
+                return sum(c.suit == s for c in hole_cards)
+    return 0
+
 def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn=1000):
     hole_cards = hand_str_to_cards(hand_str)
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
@@ -112,13 +144,13 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         made_after = detect_made_hand(hole_cards, board4)
 
         if made_after[0] != made_before[0] and made_after[0] != "high_card":
-            # 新しい役が完成した場合 → newmade_役名 のみ
-            features.append(f"newmade_{made_after[0]}")
+            hc_count = count_holecard_involvement(hole_cards, made_after[0], board4)
+            features.append(f"newmade_{made_after[0]}_hc{hc_count}")
         else:
-            # 役が変化していない場合のみ → 特徴量とオーバーカードを追加
             feats_after = classify_flop_turn_pattern(flop_cards, turn)
             new_feats = [f for f in feats_after if f not in feats_before]
-            features.extend([f"newmade_{f}" for f in new_feats])
+            for f in new_feats:
+                features.append(f"newmade_{f}")
 
             if is_overcard_turn(hole_cards, turn):
                 features.append("newmade_overcard")
@@ -139,5 +171,6 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
+
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=1000):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
