@@ -42,6 +42,7 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
     return (wins + ties / 2) / iterations * 100
 
 def detect_made_hand(hole_cards, board_cards):
+    """役の判定とホールカード貢献枚数"""
     all_cards = hole_cards + board_cards
     ranks = [c.rank for c in all_cards]
     suits = [c.suit for c in all_cards]
@@ -56,30 +57,37 @@ def detect_made_hand(hole_cards, board_cards):
         value = convert_rank_to_value(c.rank)
         suit_groups.setdefault(c.suit, []).append(value)
 
+    # ストレートフラッシュ
     for suited_vals in suit_groups.values():
         if len(suited_vals) >= 5:
             suited_vals = sorted(set(suited_vals), reverse=True)
             for i in range(len(suited_vals) - 4):
                 if suited_vals[i] - suited_vals[i + 4] == 4:
-                    return "straight_flush"
+                    return "straight_flush", count_hole_contrib(hole_cards, all_cards, "straight_flush")
             if set([14, 2, 3, 4, 5]).issubset(set(suited_vals)):
-                return "straight_flush"
+                return "straight_flush", count_hole_contrib(hole_cards, all_cards, "straight_flush")
 
     if 4 in counts:
-        return "quads"
+        return "quads", count_hole_contrib(hole_cards, all_cards, "quads")
     if 3 in counts and 2 in counts:
-        return "full_house"
+        return "full_house", count_hole_contrib(hole_cards, all_cards, "full_house")
     if max(suit_counts.values()) >= 5:
-        return "flush"
+        return "flush", count_hole_contrib(hole_cards, all_cards, "flush")
     if is_straight(values):
-        return "straight"
+        return "straight", count_hole_contrib(hole_cards, all_cards, "straight")
     if 3 in counts:
-        return "set"
+        return "set", count_hole_contrib(hole_cards, all_cards, "set")
     if counts.count(2) >= 2:
-        return "two_pair"
+        return "two_pair", count_hole_contrib(hole_cards, all_cards, "two_pair")
     if 2 in counts:
-        return "pair"
-    return "high_card"
+        return "pair", count_hole_contrib(hole_cards, all_cards, "pair")
+    return "high_card", 0
+
+def count_hole_contrib(hole_cards, all_cards, made_hand):
+    """完成役にホールカードが何枚貢献しているかを数える"""
+    # 簡易版: 同じランクのカードが役に含まれていれば貢献とする
+    ranks_needed = set(c.rank for c in all_cards)
+    return sum(1 for c in hole_cards if c.rank in ranks_needed)
 
 def is_straight(values):
     unique = sorted(set(values), reverse=True)
@@ -110,11 +118,11 @@ def simulate_shift_flop_montecarlo(hand_str, flop_type, trials=10000):
         shift = winrate - static_wr
 
         features = []
-        made_preflop = detect_made_hand(hole_cards, [])
-        made_flop = detect_made_hand(hole_cards, flop)
+        made_preflop, _ = detect_made_hand(hole_cards, [])
+        made_flop, hole_contrib = detect_made_hand(hole_cards, flop)
 
         if made_flop != made_preflop and made_flop != "high_card":
-            features.append(f"newmade_{made_flop}")
+            features.append(f"newmade_{made_flop}_hc{hole_contrib}")
         else:
             new_feats = classify_flop_turn_pattern(flop, turn=None)
             features.extend(["newmade_" + f for f in new_feats])
@@ -143,11 +151,11 @@ def simulate_shift_flop_montecarlo_specific(hand_str, flop, trials=10000):
         shift = winrate - static_wr
 
         features = []
-        made_preflop = detect_made_hand(hole_cards, [])
-        made_flop = detect_made_hand(hole_cards, flop)
+        made_preflop, _ = detect_made_hand(hole_cards, [])
+        made_flop, hole_contrib = detect_made_hand(hole_cards, flop)
 
         if made_flop != made_preflop and made_flop != "high_card":
-            features.append(f"newmade_{made_flop}")
+            features.append(f"newmade_{made_flop}_hc{hole_contrib}")
         else:
             new_feats = classify_flop_turn_pattern(flop, turn=None)
             features.extend(["newmade_" + f for f in new_feats])
