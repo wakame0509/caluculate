@@ -466,6 +466,7 @@ def get_bucket(value, is_made):
             return f"{lower}%以上〜{upper}%未満"
 
 # 特徴量の統計処理
+# 特徴量の統計処理（ターン／リバーの _枚数付き newmade_ に対応）
 def analyze_features(df_all):
     records_made = []
     records_notmade = []
@@ -477,14 +478,20 @@ def analyze_features(df_all):
         for feat in features:
             if not feat.startswith("newmade_") or feat in excluded_features:
                 continue
-            is_made = feat in made_roles
+
+            # 役名と枚数を分離（made 判定用）
+            feat_base = feat.split('_')[1] if feat.count('_') == 2 else feat.split('_')[1]
+            is_made = f"newmade_{feat_base}" in made_roles
+
             bucket = get_bucket(shift, is_made)
             record = {
-                "feature": feat,
+                "feature": feat,  # 表示・CSV用は結合ラベルのまま
+                "feat_base": feat_base,  # 集計用
                 "shift": shift,
                 "winrate": winrate,
                 "bucket": bucket
             }
+
             if is_made:
                 records_made.append(record)
             else:
@@ -493,27 +500,28 @@ def analyze_features(df_all):
     df_made = pd.DataFrame(records_made)
     df_notmade = pd.DataFrame(records_notmade)
 
+    # 集計と統計
     summary_made = (
-        df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        df_made.groupby(["feat_base", "bucket"]).size().unstack(fill_value=0)
         if not df_made.empty else pd.DataFrame()
     )
     summary_notmade = (
-        df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
+        df_notmade.groupby(["feat_base", "bucket"]).size().unstack(fill_value=0)
         if not df_notmade.empty else pd.DataFrame()
     )
 
     if not df_made.empty:
-        summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
-        summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
-        summary_made["平均Winrate"] = df_made.groupby("feature")["winrate"].mean().round(2)
+        summary_made["平均Shift"] = df_made.groupby("feat_base")["shift"].mean().round(2)
+        summary_made["標準偏差"] = df_made.groupby("feat_base")["shift"].std().round(2)
+        summary_made["平均Winrate"] = df_made.groupby("feat_base")["winrate"].mean().round(2)
         cols = [col for col in BUCKETS_MADE if col in summary_made.columns]
         summary_made = summary_made.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_made = summary_made.sort_values("平均Shift", ascending=False)
 
     if not df_notmade.empty:
-        summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
-        summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
-        summary_notmade["平均Winrate"] = df_notmade.groupby("feature")["winrate"].mean().round(2)
+        summary_notmade["平均Shift"] = df_notmade.groupby("feat_base")["shift"].mean().round(2)
+        summary_notmade["標準偏差"] = df_notmade.groupby("feat_base")["shift"].std().round(2)
+        summary_notmade["平均Winrate"] = df_notmade.groupby("feat_base")["winrate"].mean().round(2)
         cols = [col for col in BUCKETS_NOTMADE if col in summary_notmade.columns]
         summary_notmade = summary_notmade.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
