@@ -53,18 +53,31 @@ if mode == "自動生成モード":
                 flop_results, turn_results, river_results = [], [], []
                 static_wr_pf = get_static_preflop_winrate(hand)
 
+                # 🔹 フロップ進捗表示を追加
+                flop_progress = st.progress(0)
+                flop_status = st.empty()
+                total_flops = len(flops_str)
+
                 for idx, flop_cards_str in enumerate(flops_str):
+                    flop_status.text(f"[{idx+1}/{total_flops}] フロップ計算中: {' '.join(flop_cards_str)}")
+                    flop_progress.progress((idx + 1) / total_flops)
+
                     flop_cards = [eval7.Card(c) for c in flop_cards_str]
+
                     # ホールカード貢献付きフロップシフト
                     flop_wr, shift_feats = run_shift_flop(hand, flop_cards, trials)
-                    all_t, top10_t, bottom10_t = run_shift_turn(hand, flop_cards, flop_wr, trials)
+
+                    # ターン・リバーの進行も内部で追跡
+                    turn_data_list, river_data_list = [], []
 
                     used_cards = flop_cards_str + [c.__str__() for c in hand_str_to_cards(hand)]
                     remaining_deck = [c for c in deck_full if c not in used_cards]
                     turn_cards_sample = random.sample(remaining_deck, min(turn_count, len(remaining_deck)))
 
-                    turn_data_list, river_data_list = [], []
-                    for turn_card in turn_cards_sample:
+                    for turn_idx, turn_card in enumerate(turn_cards_sample):
+                        # 🔹 ターン進捗もログ表示（詳細）
+                        st.text(f"　↳ ターン {turn_idx+1}/{len(turn_cards_sample)} : {turn_card}")
+
                         turn_items, top10_turn, bottom10_turn = run_shift_turn(hand, flop_cards, flop_wr, trials)
                         turn_data_list.append({
                             "turn_card": turn_card,
@@ -73,6 +86,8 @@ if mode == "自動生成モード":
                             "bottom10": bottom10_turn
                         })
 
+                        # 🔹 リバー進捗もログ表示（詳細）
+                        st.text(f"　　↳ リバー計算中（ターン {turn_card}）...")
                         river_items, top10_river, bottom10_river = run_shift_river(
                             hand, flop_cards, turn_card, flop_wr, trials
                         )
@@ -87,10 +102,12 @@ if mode == "自動生成モード":
                     turn_results.append(turn_data_list)
                     river_results.append(river_data_list)
 
+                flop_status.text(f"✅ ハンド {hand} のフロップ計算完了")
+                flop_progress.progress(1.0)
+
                 batch_flop[hand] = flop_results
                 batch_turn[hand] = turn_results
                 batch_river[hand] = river_results
-
         st.session_state["auto_flop"] = batch_flop
         st.session_state["auto_turn"] = batch_turn
         st.session_state["auto_river"] = batch_river
