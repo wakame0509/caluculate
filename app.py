@@ -89,7 +89,7 @@ if mode == "自動生成モード":
                         # 🔹 リバー進捗もログ表示（詳細）
                         st.text(f"　　↳ リバー計算中（ターン {turn_card}）...")
                         river_items, top10_river, bottom10_river = run_shift_river(
-                        hand, flop_cards, flop_wr, trials, turn_count=turn_count
+                        hand, flop_cards, flop_wr, trials, turn_count
                         )
                         river_data_list.append({
                             "turn_card": turn_card,
