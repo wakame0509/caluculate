@@ -267,8 +267,8 @@ if "auto_flop" in st.session_state:
 
             # ShiftTurn 表示
             turn_data = st.session_state["auto_turn"][hand_str][i]
-            top10_t = turn_data[2]
-            bottom10_t = turn_data[3]
+            top10_t = turn_data[1]
+            bottom10_t = turn_data[2]
             st.markdown("- ShiftTurn Top10:")
             for item in top10_t:
                 shift_val = item["winrate"] - static_wr_flop
