@@ -270,35 +270,37 @@ if "auto_flop" in st.session_state:
 
             turn_data = st.session_state["auto_turn"][hand_str][i]
 
-            # turn_data がタプル(3つ)かリスト(1つ)かを判定
-            if isinstance(turn_data, tuple) and len(turn_data) == 3:
+            # --- turn_data 構造に応じて分岐 ---
+            if isinstance(turn_data, dict) and "all" in turn_data:
+                all_turns = turn_data["all"]
+            elif isinstance(turn_data, tuple) and len(turn_data) == 3:
                 all_turns, top10_t, bottom10_t = turn_data
             else:
-                # 旧形式 or シリアライズ後の形式
                 all_turns = turn_data
-                top10_t = all_turns[:10]
-                bottom10_t = all_turns[-10:]
 
-            # 🔧 top10_t / bottom10_t の中身を確認して必要なら辞書に変換
-            if isinstance(top10_t[0], str):
-                top10_t = [ast.literal_eval(item) for item in top10_t]  
-            if isinstance(bottom10_t[0], str):
-                bottom10_t = [ast.literal_eval(item) for item in bottom10_t]
-                
-            st.write("Turn data sample:", top10_t[0])
-            
+            # --- 辞書化処理（文字列対応） ---
+            if isinstance(all_turns[0], str):
+                all_turns = [ast.literal_eval(item) for item in all_turns]
+
+            # --- トップ10・ワースト10を抽出 ---
+            top10_t = all_turns[:10]
+            bottom10_t = all_turns[-10:]
+
             st.markdown("- ShiftTurn Top10:")
             for item in top10_t:
                 shift_val = item["winrate"] - static_wr_flop
                 sign = "+" if shift_val > 0 else ""
-                st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+                st.markdown(
+                    f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
+                )
 
             st.markdown("- ShiftTurn Worst10:")
             for item in bottom10_t:
                 shift_val = item["winrate"] - static_wr_flop
                 sign = "+" if shift_val > 0 else ""
-                st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
-            # ShiftRiver 表示
+                st.markdown(
+                    f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
+                )
             river_data = st.session_state["auto_river"][hand_str][i]
             turn_card = river_data[1]
             top10_r = river_data[2]
