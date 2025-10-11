@@ -269,7 +269,15 @@ if "auto_flop" in st.session_state:
             import ast  # Pythonの安全な文字列→辞書変換用
 
             turn_data = st.session_state["auto_turn"][hand_str][i]
-            all_turns, top10_t, bottom10_t = turn_data
+
+            # turn_data がタプル(3つ)かリスト(1つ)かを判定
+            if isinstance(turn_data, tuple) and len(turn_data) == 3:
+                all_turns, top10_t, bottom10_t = turn_data
+            else:
+                # 旧形式 or シリアライズ後の形式
+                all_turns = turn_data
+                top10_t = all_turns[:10]
+                bottom10_t = all_turns[-10:]
 
             # 🔧 top10_t / bottom10_t の中身を確認して必要なら辞書に変換
             if isinstance(top10_t[0], str):
