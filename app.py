@@ -303,26 +303,72 @@ if "auto_flop" in st.session_state:
                 st.markdown(
                     f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
                 )
+                        # --- ShiftRiver 表示部（多形式対応版） ---
             river_data = st.session_state["auto_river"][hand_str][i]
-            turn_card = river_data[1]
-            top10_r = river_data[2]
-            bottom10_r = river_data[3]
 
+            # --- river_data の構造に応じて分岐 ---
+            if isinstance(river_data, dict):
+                all_rivers = river_data.get("all", [])
+                turn_card = river_data.get("turn_card", "―")
+                top10_r = river_data.get("top10", all_rivers[:10])
+                bottom10_r = river_data.get("bottom10", all_rivers[-10:])
+            elif isinstance(river_data, (list, tuple)) and len(river_data) >= 4:
+                all_rivers, turn_card, top10_r, bottom10_r = river_data
+            elif isinstance(river_data, (list, tuple)) and len(river_data) >= 1:
+                all_rivers = river_data[0]
+                turn_card = "―"
+                top10_r = all_rivers[:10]
+                bottom10_r = all_rivers[-10:]
+            else:
+                all_rivers = []
+                turn_card = "―"
+                top10_r = bottom10_r = []
+
+            # --- 文字列 → 辞書に変換（必要な場合） ---
+            import ast
+            if all_rivers and isinstance(all_rivers[0], str):
+                all_rivers = [ast.literal_eval(item) for item in all_rivers]
+            if top10_r and isinstance(top10_r[0], str):
+                top10_r = [ast.literal_eval(item) for item in top10_r]
+            if bottom10_r and isinstance(bottom10_r[0], str):
+                bottom10_r = [ast.literal_eval(item) for item in bottom10_r]
+
+            # --- 表示処理 ---
             if top10_r:
-                turn_wr = next((t["winrate"] for t in st.session_state["auto_turn"][hand_str][i][1] if t["turn_card"] == turn_card), static_wr_flop)
+                turn_wr = next(
+                    (
+                        t["winrate"]
+                        for t in st.session_state["auto_turn"][hand_str][i][0]
+                        if t["turn_card"] == turn_card
+                    ),
+                    static_wr_flop,
+                )
                 st.markdown(f"- ShiftRiver Top10（ターン: {turn_card}）:")
                 for item in top10_r:
                     shift_val = item["winrate"] - turn_wr
                     sign = "+" if shift_val > 0 else ""
-                    st.markdown(f"　・{item['river_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+                    st.markdown(
+                        f"　・{item.get('river_card', '―')}：{sign}{shift_val:.2f}% "
+                        f"({', '.join(item.get('features', []))})"
+                    )
 
             if bottom10_r:
-                turn_wr = next((t["winrate"] for t in st.session_state["auto_turn"][hand_str][i][1] if t["turn_card"] == turn_card), static_wr_flop)
+                turn_wr = next(
+                    (
+                        t["winrate"]
+                        for t in st.session_state["auto_turn"][hand_str][i][0]
+                        if t["turn_card"] == turn_card
+                    ),
+                    static_wr_flop,
+                )
                 st.markdown(f"- ShiftRiver Worst10（ターン: {turn_card}）:")
                 for item in bottom10_r:
                     shift_val = item["winrate"] - turn_wr
                     sign = "+" if shift_val > 0 else ""
-                    st.markdown(f"　・{item['river_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+                    st.markdown(
+                        f"　・{item.get('river_card', '―')}：{sign}{shift_val:.2f}% "
+                        f"({', '.join(item.get('features', []))})"
+                    )
 if "manual" in st.session_state:
     d = st.session_state["manual"]
     flop_str = ' '.join(d["flop_cards_str"])
