@@ -281,7 +281,9 @@ if "auto_flop" in st.session_state:
             # --- 辞書化処理（文字列対応） ---
             if isinstance(all_turns[0], str):
                 all_turns = [ast.literal_eval(item) for item in all_turns]
-
+                
+            all_turns = [item for item in all_turns if isinstance(item, dict) and "winrate" in item]
+            
             # --- トップ10・ワースト10を抽出 ---
             top10_t = all_turns[:10]
             bottom10_t = all_turns[-10:]
