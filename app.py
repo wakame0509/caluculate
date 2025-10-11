@@ -266,10 +266,16 @@ if "auto_flop" in st.session_state:
                 st.markdown(f"　・{f}: {round(delta,2)}%")
 
             # ShiftTurn 表示
-            turn_data = st.session_state["auto_turn"][hand_str][i]
+            import ast  # Pythonの安全な文字列→辞書変換用
 
-            # ✅ タプル展開
+            turn_data = st.session_state["auto_turn"][hand_str][i]
             all_turns, top10_t, bottom10_t = turn_data
+
+            # 🔧 top10_t / bottom10_t の中身を確認して必要なら辞書に変換
+            if isinstance(top10_t[0], str):
+                top10_t = [ast.literal_eval(item) for item in top10_t]
+            if isinstance(bottom10_t[0], str):
+                bottom10_t = [ast.literal_eval(item) for item in bottom10_t]
 
             st.markdown("- ShiftTurn Top10:")
             for item in top10_t:
