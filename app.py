@@ -275,13 +275,13 @@ if "auto_flop" in st.session_state:
             for item in top10_t:
                 shift_val = item["winrate"] - static_wr_flop
                 sign = "+" if shift_val > 0 else ""
-            st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+                st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
 
             st.markdown("- ShiftTurn Worst10:")
             for item in bottom10_t:
                 shift_val = item["winrate"] - static_wr_flop
                 sign = "+" if shift_val > 0 else ""
-            st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+                st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
             # ShiftRiver 表示
             river_data = st.session_state["auto_river"][hand_str][i]
             turn_card = river_data[1]
