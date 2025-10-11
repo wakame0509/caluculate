@@ -136,8 +136,14 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
 
     results = []
     for turn in turn_candidates:
-        board4 = flop_cards + [turn]
-        winrate = simulate_vs_random(hole_cards, flop_cards, [turn], trials_per_turn)
+        # --- 複数ターンカード選択対応（ここを修正）---
+        if isinstance(turn, list):
+            turn_list = [eval7.Card(str(t)) for t in turn]
+        else:
+            turn_list = [turn]
+
+        board4 = flop_cards + turn_list
+        winrate = simulate_vs_random(hole_cards, flop_cards, turn_list, trials_per_turn)
         shift = winrate - static_winrate
 
         features = []
@@ -147,16 +153,19 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
             hc_count = count_holecard_involvement(hole_cards, made_after[0], board4)
             features.append(f"newmade_{made_after[0]}_hc{hc_count}")
         else:
-            feats_after = classify_flop_turn_pattern(flop_cards, turn)
+            feats_after = classify_flop_turn_pattern(flop_cards, turn_list[-1])
             new_feats = [f for f in feats_after if f not in feats_before]
             for f in new_feats:
                 features.append(f"newmade_{f}")
 
-            if is_overcard_turn(hole_cards, turn):
-                features.append("newmade_overcard")
+            # --- Overcard 判定も複数ターン対応 ---
+            for t in turn_list:
+                if is_overcard_turn(hole_cards, t):
+                    features.append("newmade_overcard")
+                    break
 
         results.append({
-            'turn_card': str(turn),
+            'turn_card': ','.join([str(t) for t in turn_list]),
             'winrate': round(winrate, 2),
             'shift': round(shift, 2),
             'features': features,
@@ -171,6 +180,5 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=1000):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
