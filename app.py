@@ -268,20 +268,20 @@ if "auto_flop" in st.session_state:
             # ShiftTurn 表示
             turn_data = st.session_state["auto_turn"][hand_str][i]
 
-# ✅ タプル展開
-all_turns, top10_t, bottom10_t = turn_data
+            # ✅ タプル展開
+            all_turns, top10_t, bottom10_t = turn_data
 
-st.markdown("- ShiftTurn Top10:")
-for item in top10_t:
-    shift_val = item["winrate"] - static_wr_flop
-    sign = "+" if shift_val > 0 else ""
-    st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+            st.markdown("- ShiftTurn Top10:")
+            for item in top10_t:
+                shift_val = item["winrate"] - static_wr_flop
+                sign = "+" if shift_val > 0 else ""
+            st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
 
-st.markdown("- ShiftTurn Worst10:")
-for item in bottom10_t:
-    shift_val = item["winrate"] - static_wr_flop
-    sign = "+" if shift_val > 0 else ""
-    st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
+            st.markdown("- ShiftTurn Worst10:")
+            for item in bottom10_t:
+                shift_val = item["winrate"] - static_wr_flop
+                sign = "+" if shift_val > 0 else ""
+            st.markdown(f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})")
             # ShiftRiver 表示
             river_data = st.session_state["auto_river"][hand_str][i]
             turn_card = river_data[1]
