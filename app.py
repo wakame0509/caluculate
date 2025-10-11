@@ -304,7 +304,7 @@ if "auto_flop" in st.session_state:
                     f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
                 )
                         # --- ShiftRiver 表示部（多形式対応版） ---
-            river_data = st.session_state["auto_river"][hand_str][
+            river_data = st.session_state["auto_river"][hand_str][i]
                         # --- river_data の構造に応じて分岐 ---
             if isinstance(river_data, dict):
                 all_rivers = river_data.get("all", [])
