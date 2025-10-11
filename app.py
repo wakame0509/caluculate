@@ -281,10 +281,12 @@ if "auto_flop" in st.session_state:
 
             # 🔧 top10_t / bottom10_t の中身を確認して必要なら辞書に変換
             if isinstance(top10_t[0], str):
-                top10_t = [ast.literal_eval(item) for item in top10_t]
+                top10_t = [ast.literal_eval(item) for item in top10_t]  
             if isinstance(bottom10_t[0], str):
                 bottom10_t = [ast.literal_eval(item) for item in bottom10_t]
-
+                
+            st.write("Turn data sample:", top10_t[0])
+            
             st.markdown("- ShiftTurn Top10:")
             for item in top10_t:
                 shift_val = item["winrate"] - static_wr_flop
