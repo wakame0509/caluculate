@@ -304,26 +304,34 @@ if "auto_flop" in st.session_state:
                     f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
                 )
                         # --- ShiftRiver 表示部（多形式対応版） ---
-            river_data = st.session_state["auto_river"][hand_str][i]
-
-            # --- river_data の構造に応じて分岐 ---
+            river_data = st.session_state["auto_river"][hand_str][
+                        # --- river_data の構造に応じて分岐 ---
             if isinstance(river_data, dict):
                 all_rivers = river_data.get("all", [])
                 turn_card = river_data.get("turn_card", "―")
-                top10_r = river_data.get("top10", all_rivers[:10])
-                bottom10_r = river_data.get("bottom10", all_rivers[-10:])
+                top10_r = river_data.get("top10", [])
+                bottom10_r = river_data.get("bottom10", [])
+
+                # all_rivers が辞書の場合に備えて安全化
+                if isinstance(all_rivers, dict):
+                    all_rivers = all_rivers.get("all", [])
+
+                # top10 / bottom10 が空なら自前生成
+                if not top10_r and isinstance(all_rivers, list):
+                    top10_r = all_rivers[:10]
+                    bottom10_r = all_rivers[-10:]
+
             elif isinstance(river_data, (list, tuple)) and len(river_data) >= 4:
                 all_rivers, turn_card, top10_r, bottom10_r = river_data
             elif isinstance(river_data, (list, tuple)) and len(river_data) >= 1:
                 all_rivers = river_data[0]
                 turn_card = "―"
-                top10_r = all_rivers[:10]
-                bottom10_r = all_rivers[-10:]
+                top10_r = all_rivers[:10] if isinstance(all_rivers, list) else []
+                bottom10_r = all_rivers[-10:] if isinstance(all_rivers, list) else []
             else:
                 all_rivers = []
                 turn_card = "―"
                 top10_r = bottom10_r = []
-
             # --- 文字列 → 辞書に変換（必要な場合） ---
             import ast
             if all_rivers and isinstance(all_rivers[0], str):
