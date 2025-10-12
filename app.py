@@ -422,8 +422,23 @@ if st.button("CSV保存"):
             if "auto_turn" in st.session_state and hand_str in st.session_state["auto_turn"]:
                 turn_data_list = st.session_state["auto_turn"][hand_str]
                 if i < len(turn_data_list):
-                    turn_data = turn_data_list[i]
-                    turn_items = turn_data[1]
+                    turn_data = st.session_state["auto_turn"][hand_str][i]
+
+                    # --- turn_data の構造に応じて展開（表示部と同一ロジック） ---
+                    if isinstance(turn_data, dict) and "all" in turn_data:
+                        turn_items = turn_data["all"]
+                    elif isinstance(turn_data, tuple) and len(turn_data) == 3:
+                        all_turns, top10_t, bottom10_t = turn_data
+                        turn_items = all_turns
+                    elif isinstance(turn_data, (list, tuple)) and len(turn_data) > 0:
+                        turn_items = turn_data
+                    else:
+                        turn_items = []
+
+                        # --- 文字列なら辞書に変換 ---
+                        import ast
+                        if turn_items and isinstance(turn_items[0], str):
+                            turn_items = [ast.literal_eval(item) for item in turn_items]
                     seen_turn = set()
                     for item in turn_items:
                         tc = item["turn_card"]
