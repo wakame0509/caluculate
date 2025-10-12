@@ -436,9 +436,9 @@ if st.button("CSV保存"):
                         turn_items = []
 
                         # --- 文字列なら辞書に変換 ---
-                        import ast
-                        if turn_items and isinstance(turn_items[0], str):
-                            turn_items = [ast.literal_eval(item) for item in turn_items]
+                    import ast
+                    if turn_items and isinstance(turn_items[0], str):
+                        turn_items = [ast.literal_eval(item) for item in turn_items]
                     seen_turn = set()
                     for item in turn_items:
                         tc = item["turn_card"]
