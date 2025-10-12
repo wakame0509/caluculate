@@ -462,7 +462,7 @@ if st.button("CSV保存"):
                             "Hand": hand_str
                         })
 
-                # --- ShiftRiver 保存部（多形式対応・表示部と一致） ---
+                    # --- ShiftRiver 保存部（多形式対応・KeyError防止版） ---
     if "auto_river" in st.session_state and hand_str in st.session_state["auto_river"]:
         river_data_list = st.session_state["auto_river"][hand_str]
         if i < len(river_data_list):
@@ -506,12 +506,16 @@ if st.button("CSV保存"):
                     continue
                 seen_river.add(rc)
 
+                # ✅ hand_rank がない場合でも安全に処理
                 made = item.get("hand_rank", "―")
                 if made == "high_card":
                     made = "―"
+
+                # ✅ features が存在しない場合も空リストで安全に処理
                 feats = [f for f in item.get("features", []) if f.startswith("newmade_")]
                 if not feats:
                     feats = ["―"]
+
                 wr = item.get("winrate", turn_wr)
                 shift = round(wr - turn_wr, 2)
 
