@@ -8,7 +8,13 @@ from simulate_shift_river import run_shift_river
 from hand_utils import all_starting_hands, hand_str_to_cards
 from preflop_winrates_random import get_static_preflop_winrate
 from generate_preflop_winrates import calculate_preflop_winrates_streamlit
-
+# --- セッションステートの初期化 ---
+if "auto_flop" not in st.session_state:
+    st.session_state["auto_flop"] = {}
+if "auto_turn" not in st.session_state:
+    st.session_state["auto_turn"] = {}
+if "auto_river" not in st.session_state:
+    st.session_state["auto_river"] = {}
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（複数ハンド対応・CSV保存付き）")
 
