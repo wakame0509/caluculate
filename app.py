@@ -419,58 +419,68 @@ if st.button("CSV保存"):
                 })
 
             # ShiftTurn
-            turn_data = st.session_state["auto_turn"][hand_str][i]
-            turn_items = turn_data[1]
-            seen_turn = set()
-            for item in turn_items:
-                tc = item["turn_card"]
-                if tc in seen_turn:
-                    continue
-                seen_turn.add(tc)
-                made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
-                feats = [f for f in item["features"] if f.startswith("newmade_")]
-                if not feats:
-                    feats = ["―"]
-                shift = round(item["winrate"] - static_wr_flop, 2)
-                csv_rows.append({
-                    "Stage": "ShiftTurn",
-                    "Flop": flop_str,
-                    "Turn": tc,
-                    "Detail": tc,
-                    "Shift": shift,
-                    "Winrate": round(item["winrate"], 2),
-                    "Features": ', '.join(feats),
-                    "Role": made,
-                    "Hand": hand_str
-                })
+            if "auto_turn" in st.session_state and hand_str in st.session_state["auto_turn"]:
+                turn_data_list = st.session_state["auto_turn"][hand_str]
+                if i < len(turn_data_list):
+                    turn_data = turn_data_list[i]
+                    turn_items = turn_data[1]
+                    seen_turn = set()
+                    for item in turn_items:
+                        tc = item["turn_card"]
+                        if tc in seen_turn:
+                            continue
+                        seen_turn.add(tc)
+                        made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
+                        feats = [f for f in item["features"] if f.startswith("newmade_")]
+                        if not feats:
+                            feats = ["―"]
+                        shift = round(item["winrate"] - static_wr_flop, 2)
+                        csv_rows.append({
+                            "Stage": "ShiftTurn",
+                            "Flop": flop_str,
+                            "Turn": tc,
+                            "Detail": tc,
+                            "Shift": shift,
+                            "Winrate": round(item["winrate"], 2),
+                            "Features": ', '.join(feats),
+                            "Role": made,
+                            "Hand": hand_str
+                        })
 
             # ShiftRiver
-            river_data = st.session_state["auto_river"][hand_str][i]
-            turn_card = river_data[1]
-            river_items = river_data[2]
-            turn_wr = next((t["winrate"] for t in turn_items if t["turn_card"] == turn_card), static_wr_flop)
-            seen_river = set()
-            for item in river_items:
-                rc = item["river_card"]
-                if rc in seen_river:
-                    continue
-                seen_river.add(rc)
-                made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
-                feats = [f for f in item["features"] if f.startswith("newmade_")]
-                if not feats:
-                    feats = ["―"]
-                shift = round(item["winrate"] - turn_wr, 2)
-                csv_rows.append({
-                    "Stage": "ShiftRiver",
-                    "Flop": flop_str,
-                    "Turn": turn_card,
-                    "Detail": rc,
-                    "Shift": shift,
-                    "Winrate": round(item["winrate"], 2),
-                    "Features": ', '.join(feats),
-                    "Role": made,
-                    "Hand": hand_str
-                })
+            if "auto_river" in st.session_state and hand_str in st.session_state["auto_river"]:
+                river_data_list = st.session_state["auto_river"][hand_str]
+                if i < len(river_data_list):
+                    river_data = river_data_list[i]
+                    if len(river_data) >= 3:
+                        turn_card = river_data[1]
+                        river_items = river_data[2]
+                        turn_wr = next(
+                            (t["winrate"] for t in turn_items if t["turn_card"] == turn_card),
+                            static_wr_flop
+                        )
+                        seen_river = set()
+                        for item in river_items:
+                            rc = item["river_card"]
+                            if rc in seen_river:
+                                continue
+                            seen_river.add(rc)
+                            made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
+                            feats = [f for f in item["features"] if f.startswith("newmade_")]
+                            if not feats:
+                                feats = ["―"]
+                            shift = round(item["winrate"] - turn_wr, 2)
+                            csv_rows.append({
+                                "Stage": "ShiftRiver",
+                                "Flop": flop_str,
+                                "Turn": turn_card,
+                                "Detail": rc,
+                                "Shift": shift,
+                                "Winrate": round(item["winrate"], 2),
+                                "Features": ', '.join(feats),
+                                "Role": made,
+                                "Hand": hand_str
+                            })
 
     df = pd.DataFrame(csv_rows)
     st.session_state["csv_data"] = df.to_csv(index=False)
