@@ -310,91 +310,66 @@ if "auto_flop" in st.session_state:
                     f"　・{item['turn_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
                 )
                         # --- ShiftRiver 表示部（多形式対応版） ---
+                        # --- ShiftRiver 表示部（多形式対応版） ---
             import ast  # Pythonの安全な文字列→辞書変換用
 
-river_data = st.session_state["auto_river"][hand_str][i]
+            river_data = st.session_state["auto_river"][hand_str][i]
 
-# --- river_data 構造に応じて分岐 ---
-if isinstance(river_data, dict):
-    # ✅ 新形式 {"turn_card":..., "all":[...]} に対応
-    turn_card = river_data.get("turn_card", "")
-    all_rivers = river_data.get("all", [])
-elif isinstance(river_data, tuple) and len(river_data) >= 4:
-    # ✅ 旧形式 (フロップ, ターン, top10, bottom10) に対応
-    turn_card = river_data[1]
-    top10_r = river_data[2]
-    bottom10_r = river_data[3]
-    all_rivers = top10_r + bottom10_r
-else:
-    # ✅ その他予期せぬ形式
-    all_rivers = []
-    turn_card = ""
+            # --- river_data 構造に応じて分岐 ---
+            if isinstance(river_data, dict):
+                # ✅ 新形式 {"turn_card":..., "all":[...]} に対応
+                turn_card = river_data.get("turn_card", "")
+                all_rivers = river_data.get("all", [])
+            elif isinstance(river_data, tuple) and len(river_data) >= 4:
+                # ✅ 旧形式 (フロップ, ターン, top10, bottom10) に対応
+                turn_card = river_data[1]
+                top10_r = river_data[2]
+                bottom10_r = river_data[3]
+                all_rivers = top10_r + bottom10_r
+            else:
+                # ✅ その他予期せぬ形式
+                all_rivers = []
+                turn_card = ""
 
-# --- 文字列なら辞書に変換 ---
-if all_rivers and isinstance(all_rivers[0], str):
-    all_rivers = [ast.literal_eval(item) for item in all_rivers]
+            # --- 文字列なら辞書に変換 ---
+            if all_rivers and isinstance(all_rivers[0], str):
+                all_rivers = [ast.literal_eval(item) for item in all_rivers]
 
-# --- トップ10・ワースト10を抽出 ---
-top10_r = all_rivers[:10] if all_rivers else []
-bottom10_r = all_rivers[-10:] if all_rivers else []
+            # --- トップ10・ワースト10を抽出 ---
+            top10_r = all_rivers[:10] if all_rivers else []
+            bottom10_r = all_rivers[-10:] if all_rivers else []
 
-# --- ターン勝率を取得 ---
-turn_wr = static_wr_flop
-turn_list = st.session_state["auto_turn"][hand_str][i]
-if isinstance(turn_list, dict) and "all" in turn_list:
-    turn_list = turn_list["all"]
-if isinstance(turn_list, list):
-    for t in turn_list:
-        if isinstance(t, dict) and t.get("turn_card") == turn_card:
-            turn_wr = t.get("winrate", static_wr_flop)
-            break
+            # --- ターン勝率を取得 ---
+            turn_wr = static_wr_flop
+            turn_list = st.session_state["auto_turn"][hand_str][i]
+            if isinstance(turn_list, dict) and "all" in turn_list:
+                turn_list = turn_list["all"]
+            if isinstance(turn_list, list):
+                for t in turn_list:
+                    if isinstance(t, dict) and t.get("turn_card") == turn_card:
+                        turn_wr = t.get("winrate", static_wr_flop)
+                        break
 
-# --- 表示 ---
-if top10_r:
-    st.markdown(f"- ShiftRiver Top10（ターン: {turn_card}）:")
-    for item in top10_r:
-        if "winrate" in item:
-            shift_val = item["winrate"] - turn_wr
-            sign = "+" if shift_val > 0 else ""
-            st.markdown(
-                f"　・{item['river_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
-            )
+            # --- 表示 ---
+            if top10_r:
+                st.markdown(f"- ShiftRiver Top10（ターン: {turn_card}）:")
+                for item in top10_r:
+                    if "winrate" in item:
+                        shift_val = item["winrate"] - turn_wr
+                        sign = "+" if shift_val > 0 else ""
+                        st.markdown(
+                            f"　・{item['river_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
+                        )
 
-if bottom10_r:
-    st.markdown(f"- ShiftRiver Worst10（ターン: {turn_card}）:")
-    for item in bottom10_r:
-        if "winrate" in item:
-            shift_val = item["winrate"] - turn_wr
-            sign = "+" if shift_val > 0 else ""
-            st.markdown(
-                f"　・{item['river_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
-            )
-
-    st.subheader(f"勝率表示（{hand_str}）")
-    st.markdown(f"- プリフロップ勝率: **{get_static_preflop_winrate(hand_str):.1f}%**")
-    st.markdown(f"- フロップ勝率（モンテカルロ）: **{d['static_wr']:.1f}%**")
-
-    st.subheader("ShiftTurn：勝率上昇 Top10")
-    for item in d["turn_top"]:
-        sign = "+" if item["shift"] > 0 else ""
-        st.markdown(f"{item['turn_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
-
-    st.subheader("ShiftTurn：勝率下降 Worst10")
-    for item in d["turn_bottom"]:
-        sign = "+" if item["shift"] > 0 else ""
-        st.markdown(f"{item['turn_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
-
-    if d["river_top"]:
-        st.subheader("ShiftRiver：勝率上昇 Top10")
-        for item in d["river_top"]:
-            sign = "+" if item["shift"] > 0 else ""
-            st.markdown(f"{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
-
-    if d["river_bottom"]:
-        st.subheader("ShiftRiver：勝率下降 Worst10")
-        for item in d["river_bottom"]:
-            sign = "+" if item["shift"] > 0 else ""
-            st.markdown(f"{item['river_card']}：{sign}{item['shift']:.2f}% ({', '.join(item['features'])})")
+            if bottom10_r:
+                st.markdown(f"- ShiftRiver Worst10（ターン: {turn_card}）:")
+                for item in bottom10_r:
+                    if "winrate" in item:
+                        shift_val = item["winrate"] - turn_wr
+                        sign = "+" if shift_val > 0 else ""
+                        st.markdown(
+                            f"　・{item['river_card']}：{sign}{shift_val:.2f}% ({', '.join(item['features'])})"
+                        )
 
 if st.button("CSV保存"):
     csv_rows = []
