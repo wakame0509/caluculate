@@ -462,41 +462,70 @@ if st.button("CSV保存"):
                             "Hand": hand_str
                         })
 
-            # ShiftRiver
-            if "auto_river" in st.session_state and hand_str in st.session_state["auto_river"]:
-                river_data_list = st.session_state["auto_river"][hand_str]
-                if i < len(river_data_list):
-                    river_data = river_data_list[i]
-                    if len(river_data) >= 3:
-                        turn_card = river_data[1]
-                        river_items = river_data[2]
-                        turn_wr = next(
-                            (t["winrate"] for t in turn_items if t["turn_card"] == turn_card),
-                            static_wr_flop
-                        )
-                        seen_river = set()
-                        for item in river_items:
-                            rc = item["river_card"]
-                            if rc in seen_river:
-                                continue
-                            seen_river.add(rc)
-                            made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
-                            feats = [f for f in item["features"] if f.startswith("newmade_")]
-                            if not feats:
-                                feats = ["―"]
-                            shift = round(item["winrate"] - turn_wr, 2)
-                            csv_rows.append({
-                                "Stage": "ShiftRiver",
-                                "Flop": flop_str,
-                                "Turn": turn_card,
-                                "Detail": rc,
-                                "Shift": shift,
-                                "Winrate": round(item["winrate"], 2),
-                                "Features": ', '.join(feats),
-                                "Role": made,
-                                "Hand": hand_str
-                            })
+                # --- ShiftRiver 保存部（多形式対応・表示部と一致） ---
+    if "auto_river" in st.session_state and hand_str in st.session_state["auto_river"]:
+        river_data_list = st.session_state["auto_river"][hand_str]
+        if i < len(river_data_list):
+            river_data = river_data_list[i]
 
+            # --- 新旧構造に対応して展開 ---
+            if isinstance(river_data, dict):
+                # 新形式 {"turn_card": ..., "all": [...]} に対応
+                turn_card = river_data.get("turn_card", "")
+                river_items = river_data.get("all", [])
+            elif isinstance(river_data, tuple) and len(river_data) >= 3:
+                # 旧形式 (flop, turn, river_top, river_bottom)
+                turn_card = river_data[1]
+                river_top = river_data[2] if len(river_data) > 2 else []
+                river_bottom = river_data[3] if len(river_data) > 3 else []
+                river_items = river_top + river_bottom
+            else:
+                turn_card = ""
+                river_items = []
+
+            # --- 文字列なら辞書に変換 ---
+            import ast
+            if river_items and isinstance(river_items[0], str):
+                river_items = [ast.literal_eval(item) for item in river_items]
+
+            # --- 対応するターン勝率を取得 ---
+            turn_wr = static_wr_flop
+            if isinstance(turn_items, list):
+                for t in turn_items:
+                    if isinstance(t, dict) and t.get("turn_card") == turn_card:
+                        turn_wr = t.get("winrate", static_wr_flop)
+                        break
+
+            # --- 各リバーの情報を保存 ---
+            seen_river = set()
+            for item in river_items:
+                if not isinstance(item, dict) or "river_card" not in item:
+                    continue
+                rc = item["river_card"]
+                if rc in seen_river:
+                    continue
+                seen_river.add(rc)
+
+                made = item.get("hand_rank", "―")
+                if made == "high_card":
+                    made = "―"
+                feats = [f for f in item.get("features", []) if f.startswith("newmade_")]
+                if not feats:
+                    feats = ["―"]
+                wr = item.get("winrate", turn_wr)
+                shift = round(wr - turn_wr, 2)
+
+                csv_rows.append({
+                    "Stage": "ShiftRiver",
+                    "Flop": flop_str,
+                    "Turn": turn_card,
+                    "Detail": rc,
+                    "Shift": shift,
+                    "Winrate": round(wr, 2),
+                    "Features": ', '.join(feats),
+                    "Role": made,
+                    "Hand": hand_str
+                })
     df = pd.DataFrame(csv_rows)
     st.session_state["csv_data"] = df.to_csv(index=False)
 
