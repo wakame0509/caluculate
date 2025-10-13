@@ -645,6 +645,16 @@ if st.button("CSV保存"):
     df = pd.DataFrame(csv_rows)
     st.session_state["csv_data"] = df.to_csv(index=False)
     st.success("CSVをセッションに保存しました")
+    # --- CSV ダウンロードボタンを表示 ---
+if "csv_data" in st.session_state and st.session_state["csv_data"]:
+    st.download_button(
+        label="📥 CSVをダウンロード",
+        data=st.session_state["csv_data"],
+        file_name="shift_results.csv",
+        mime="text/csv"
+    )
+else:
+    st.warning("CSVがまだ生成されていません。Shift計算を先に実行してください。")
 import streamlit as st
 import pandas as pd
 
