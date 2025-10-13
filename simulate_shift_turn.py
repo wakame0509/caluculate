@@ -131,12 +131,13 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     flop_cards = [eval7.Card(str(c)) for c in flop_cards]
     turn_candidates = generate_turns(flop_cards, hole_cards)
 
+    # フロップ時点の役・特徴を取得
     made_before = detect_made_hand(hole_cards, flop_cards)
     feats_before = classify_flop_turn_pattern(flop_cards, turn=None)
 
     results = []
     for turn in turn_candidates:
-        # --- 複数ターンカード選択対応（ここを修正）---
+        # --- ターンカードをリスト化（複数対応）---
         if isinstance(turn, list):
             turn_list = [eval7.Card(str(t)) for t in turn]
         else:
@@ -149,29 +150,36 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
         features = []
         made_after = detect_made_hand(hole_cards, board4)
 
+        # --- 役が進化した場合 ---
         if made_after[0] != made_before[0] and made_after[0] != "high_card":
             hc_count = count_holecard_involvement(hole_cards, made_after[0], board4)
             features.append(f"newmade_{made_after[0]}_hc{hc_count}")
+
+        # --- 役が進化しなかった場合：ボード特徴を比較 ---
         else:
             feats_after = classify_flop_turn_pattern(flop_cards, turn_list[-1])
             new_feats = [f for f in feats_after if f not in feats_before]
-            for f in new_feats:
-                features.append(f"newmade_{f}")
 
-            # --- Overcard 判定も複数ターン対応 ---
+            if new_feats:
+                for f in new_feats:
+                    features.append(f"newfeat_{f}")
+
+            # --- Overcard 判定 ---
             for t in turn_list:
                 if is_overcard_turn(hole_cards, t):
                     features.append("newmade_overcard")
                     break
 
+        # --- 結果を記録 ---
         results.append({
             'turn_card': ','.join([str(t) for t in turn_list]),
             'winrate': round(winrate, 2),
             'shift': round(shift, 2),
-            'features': features,
+            'features': features if features else ["none"],
             'hand_rank': made_after[0] if made_after else '―'
         })
 
+    # --- 結果をソート・保存 ---
     df = pd.DataFrame(results)
     df_sorted = df.sort_values(by='shift', ascending=False)
     df_sorted.to_csv(f'results_turn_{hand_str}.csv', index=False)
