@@ -449,6 +449,9 @@ if st.button("CSV保存"):
                         made = item.get("hand_rank", "―")
                         if made == "high_card":
                             made = "―"
+                        feats = item.get("features", [])
+                        if isinstance(feats, str):
+                            feats = [feats]
                         feats = [f for f in item["features"] if f.startswith("newmade_")]
                         if not feats:
                             feats = ["―"]
