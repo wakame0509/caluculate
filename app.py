@@ -445,7 +445,10 @@ if st.button("CSV保存"):
                         if tc in seen_turn:
                             continue
                         seen_turn.add(tc)
-                        made = item["hand_rank"] if item["hand_rank"] != "high_card" else "―"
+                                        # ✅ hand_rank がない場合でも安全に処理
+                        made = item.get("hand_rank", "―")
+                        if made == "high_card":
+                            made = "―"
                         feats = [f for f in item["features"] if f.startswith("newmade_")]
                         if not feats:
                             feats = ["―"]
