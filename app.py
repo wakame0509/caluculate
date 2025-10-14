@@ -629,6 +629,27 @@ if st.button("CSV保存"):
                             shift = round(float(wr) - float(turn_wr), 2)
                         except Exception:
                             shift = ""
+                         # --- 特徴量（board feature）を取得 ---
+                        try:
+                            board_feats = classify_flop_turn_pattern(flop_board, turn_card, river_card)
+                        except Exception as e:
+                            board_feats = [f"error:{e}"]
+
+                        # --- ニューメイド特徴ロジック ---
+                        feats = []
+
+                        if made.startswith("newmade_"):
+                            # 役が進化した場合 → 役だけ記録、特徴は空
+                            feats = ["―"]
+                        else:
+                            # 役が進化していない場合 → ボードの新特徴をチェック
+                            newmade_feats = [f"newmade_{bf}" for bf in board_feats if bf in [
+                                "straight_draw", "gutshot_draw_4", "three_straight", "flush_draw", "three_flush"
+                            ]]
+                            if newmade_feats:
+                                feats = newmade_feats
+                            else:
+                                feats = ["―"]   
                         csv_rows.append({
                             "Stage": "ShiftRiver",
                             "Flop": flop_str,
