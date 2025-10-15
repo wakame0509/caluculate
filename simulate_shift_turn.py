@@ -155,21 +155,21 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
             hc_count = count_holecard_involvement(hole_cards, made_after[0], board4)
             features.append(f"newmade_{made_after[0]}_hc{hc_count}")
 
-        # --- 役が進化しなかった場合：ボード特徴を比較 ---
+                # --- 役が進化しなかった場合：ボード特徴を比較 ---
         else:
             feats_after = classify_flop_turn_pattern(flop_cards, turn_list[-1])
             new_feats = [f for f in feats_after if f not in feats_before]
 
+            # --- newmade_形式で特徴を記録（役が進化しなかった時のみ） ---
             if new_feats:
                 for f in new_feats:
-                    features.append(f"newfeat_{f}")
+                    features.append(f"newmade_{f}")
 
             # --- Overcard 判定 ---
             for t in turn_list:
                 if is_overcard_turn(hole_cards, t):
                     features.append("newmade_overcard")
                     break
-
         # --- 結果を記録 ---
         results.append({
             'turn_card': ','.join([str(t) for t in turn_list]),
