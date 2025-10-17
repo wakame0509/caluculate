@@ -634,13 +634,13 @@ if st.button("CSV保存"):
                         if not feats:
                             feats = ["―"]
                         wr = item.get("winrate", turn_wr)
-                        try:
+                                                try:
                             shift = round(float(wr) - float(turn_wr), 2)
                         except Exception:
                             shift = ""
-                         # --- 特徴量（board feature）を取得 ---
+                        # --- 特徴量（board feature）を取得 ---
                         try:
-                            board_feats = classify_flop_turn_pattern(flop_board, turn_card, river_card)
+                            board_feats = classify_flop_turn_pattern(flop_board, turn_card, rc)
                         except Exception as e:
                             board_feats = [f"error:{e}"]
 
