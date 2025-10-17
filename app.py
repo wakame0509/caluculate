@@ -634,7 +634,7 @@ if st.button("CSV保存"):
                         if not feats:
                             feats = ["―"]
                         wr = item.get("winrate", turn_wr)
-                                                try:
+                        try:
                             shift = round(float(wr) - float(turn_wr), 2)
                         except Exception:
                             shift = ""
