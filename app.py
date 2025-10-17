@@ -216,9 +216,9 @@ for river_entry in river_entries:
             "Role": made,
             "Hand": hand_str
         })
-                df = pd.DataFrame(csv_rows)
-                st.session_state["csv_data"] = df.to_csv(index=False)
-                st.success("CSVをセッションに保存しました")
+        df = pd.DataFrame(csv_rows)
+        st.session_state["csv_data"] = df.to_csv(index=False)
+        st.success("CSVをセッションに保存しました")
 
         with col2:
             if "csv_data" in st.session_state:
