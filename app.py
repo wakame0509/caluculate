@@ -216,17 +216,17 @@ for river_entry in river_entries:
             "Role": made,
             "Hand": hand_str
         })
-        df = pd.DataFrame(csv_rows)
-        st.session_state["csv_data"] = df.to_csv(index=False)
-        st.success("CSVをセッションに保存しました")
+df = pd.DataFrame(csv_rows)
+st.session_state["csv_data"] = df.to_csv(index=False)
+st.success("CSVをセッションに保存しました")
 
-        with col2:
-            if "csv_data" in st.session_state:
-                st.download_button(
-                    label="📥 ダウンロード（上部）",
-                    data=st.session_state["csv_data"],
-                    file_name="shift_results.csv",
-                    mime="text/csv"
+with col2:
+    if "csv_data" in st.session_state:
+         st.download_button(
+             label="📥 ダウンロード（上部）",
+             data=st.session_state["csv_data"],
+             file_name="shift_results.csv",
+             mime="text/csv"
                 )
 elif mode == "手動選択モード":
     trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
