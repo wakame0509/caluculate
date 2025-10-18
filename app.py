@@ -227,11 +227,11 @@ if mode == "自動生成モード":
                     mime="text/csv"
                 )
 
-    elif mode == "手動選択モード":
-        trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
-        flop_input = st.text_input("フロップ（例: Ah Ks Td）")
-        turn_input = st.text_input("ターンカード（任意）")
-        river_input = st.text_input("リバーカード（任意）")
+elif mode == "手動選択モード":
+    trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
+    flop_input = st.text_input("フロップ（例: Ah Ks Td）")
+    turn_input = st.text_input("ターンカード（任意）")
+    river_input = st.text_input("リバーカード（任意）")
 
     try:
         flop_cards_str = flop_input.strip().split()
