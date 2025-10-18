@@ -485,49 +485,49 @@ else:
     st.warning("CSVがまだ生成されていません。Shift計算を先に実行してください。")
 import streamlit as st
 import pandas as pd
+import re
 
-# 役名一覧（newmade_ が前提）
+# === 役名一覧（newmade_ が前提） ===
 made_roles = [
     "newmade_set", "newmade_straight", "newmade_flush", "newmade_full_house",
     "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
 ]
 
-# 除外対象の特徴量（スート系など）
+# === 除外対象の特徴量 ===
 excluded_features = {"newmade_rainbow", "newmade_two_tone", "newmade_monotone"}
 
-# 表示順を固定するためのバケット（全て「以上〜未満」形式・半角マイナス）
-BUCKETS_MADE = [
-    "0%未満", "0%以上〜5%未満", "5%以上〜10%未満", "10%以上〜15%未満",
-    "15%以上〜20%未満", "20%以上〜25%未満", "25%以上〜30%未満", "30%以上"
-]
-BUCKETS_NOTMADE = [
-    "-15%未満", "-15%以上〜-10%未満", "-10%以上〜-5%未満", "-5%以上〜0%未満",
-    "0%以上〜5%未満", "5%以上〜10%未満", "10%以上〜15%未満", "15%以上"
-]
+# === バケット定義（10%刻み、-100〜100%） ===
+def make_buckets(start, end, step):
+    buckets = []
+    for v in range(start, end, step):
+        buckets.append(f"{v}%以上〜{v+step}%未満")
+    return buckets
 
-# バケット分類関数
+BUCKETS_MADE = make_buckets(0, 100, 10) + ["100%以上"]
+BUCKETS_NOTMADE = make_buckets(-100, 100, 10) + ["100%以上"]
+
+# === バケット分類関数 ===
 def get_bucket(value, is_made):
     if is_made:
         if value < 0:
             return "0%未満"
-        elif value >= 30:
-            return "30%以上"
+        elif value >= 100:
+            return "100%以上"
         else:
-            lower = int(value // 5) * 5
-            upper = lower + 5
+            lower = int(value // 10) * 10
+            upper = lower + 10
             return f"{lower}%以上〜{upper}%未満"
     else:
-        if value < -15:
-            return "-15%未満"
-        elif value >= 15:
-            return "15%以上"
+        if value < -100:
+            return "-100%未満"
+        elif value >= 100:
+            return "100%以上"
         else:
-            lower = int(value // 5) * 5
-            upper = lower + 5
+            lower = int(value // 10) * 10
+            upper = lower + 10
             return f"{lower}%以上〜{upper}%未満"
 
-# 特徴量の統計処理
-# 特徴量の統計処理（ターン／リバーの _枚数付き newmade_ に対応）
+# === 特徴量の統計処理（hc0, hc1を別役として扱う） ===
 def analyze_features(df_all):
     records_made = []
     records_notmade = []
@@ -536,18 +536,19 @@ def analyze_features(df_all):
         shift = row["Shift"]
         winrate = row["Winrate"]
         features = str(row["Features"]).split(", ")
+
         for feat in features:
             if not feat.startswith("newmade_") or feat in excluded_features:
                 continue
 
-            # 役名と枚数を分離（made 判定用）
-            feat_base = feat.split('_')[1] if feat.count('_') == 2 else feat.split('_')[1]
-            is_made = f"newmade_{feat_base}" in made_roles
+            # hcを含むfeatをそのまま使い、made判定はhc除外で行う
+            base_match = re.match(r"(newmade_[a-z_]+)", feat)
+            feat_base = base_match.group(1) if base_match else feat
+            is_made = feat_base in made_roles
 
             bucket = get_bucket(shift, is_made)
             record = {
-                "feature": feat,  # 表示・CSV用は結合ラベルのまま
-                "feat_base": feat_base,  # 集計用
+                "feature": feat,   # hc付きで集計
                 "shift": shift,
                 "winrate": winrate,
                 "bucket": bucket
@@ -561,36 +562,36 @@ def analyze_features(df_all):
     df_made = pd.DataFrame(records_made)
     df_notmade = pd.DataFrame(records_notmade)
 
-    # 集計と統計
+    # === 集計・統計（hc付きfeatureごと） ===
     summary_made = (
-        df_made.groupby(["feat_base", "bucket"]).size().unstack(fill_value=0)
+        df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
         if not df_made.empty else pd.DataFrame()
     )
     summary_notmade = (
-        df_notmade.groupby(["feat_base", "bucket"]).size().unstack(fill_value=0)
+        df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
         if not df_notmade.empty else pd.DataFrame()
     )
 
     if not df_made.empty:
-        summary_made["平均Shift"] = df_made.groupby("feat_base")["shift"].mean().round(2)
-        summary_made["標準偏差"] = df_made.groupby("feat_base")["shift"].std().round(2)
-        summary_made["平均Winrate"] = df_made.groupby("feat_base")["winrate"].mean().round(2)
+        summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
+        summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
+        summary_made["平均Winrate"] = df_made.groupby("feature")["winrate"].mean().round(2)
         cols = [col for col in BUCKETS_MADE if col in summary_made.columns]
         summary_made = summary_made.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_made = summary_made.sort_values("平均Shift", ascending=False)
 
     if not df_notmade.empty:
-        summary_notmade["平均Shift"] = df_notmade.groupby("feat_base")["shift"].mean().round(2)
-        summary_notmade["標準偏差"] = df_notmade.groupby("feat_base")["shift"].std().round(2)
-        summary_notmade["平均Winrate"] = df_notmade.groupby("feat_base")["winrate"].mean().round(2)
+        summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
+        summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
+        summary_notmade["平均Winrate"] = df_notmade.groupby("feature")["winrate"].mean().round(2)
         cols = [col for col in BUCKETS_NOTMADE if col in summary_notmade.columns]
         summary_notmade = summary_notmade.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
 
     return summary_made, summary_notmade
 
-# Streamlit UI
-st.title("特徴量別 勝率シフト度数分布＋統計（役あり／役なし分離）")
+# === Streamlit UI ===
+st.title("特徴量別 勝率シフト度数分布＋統計（役あり／役なし分離・hc別集計対応）")
 
 uploaded_files = st.file_uploader("CSVファイルをアップロード（複数可）", type="csv", accept_multiple_files=True)
 
@@ -601,13 +602,13 @@ if uploaded_files:
     summary_made, summary_notmade = analyze_features(df_all)
 
     if not summary_made.empty:
-        st.subheader("🟩 役が完成した特徴量（made）の統計")
+        st.subheader("🟩 役が完成した特徴量（made, hc区別あり）")
         st.dataframe(summary_made)
         csv_made = summary_made.to_csv(index=True, encoding="utf-8-sig")
         st.download_button("📥 made特徴量をCSV保存", data=csv_made, file_name="summary_made.csv", mime="text/csv")
 
     if not summary_notmade.empty:
-        st.subheader("🟦 役が未完成の特徴量（not made）の統計")
+        st.subheader("🟦 役が未完成の特徴量（not made, hc区別あり）")
         st.dataframe(summary_notmade)
         csv_notmade = summary_notmade.to_csv(index=True, encoding="utf-8-sig")
         st.download_button("📥 not made特徴量をCSV保存", data=csv_notmade, file_name="summary_notmade.csv", mime="text/csv")
