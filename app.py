@@ -118,7 +118,7 @@ if mode == "自動生成モード":
         st.session_state["auto_turn"] = batch_turn
         st.session_state["auto_river"] = batch_river
 
-                col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("CSV保存（上部）"):
                 csv_rows = []
