@@ -178,7 +178,7 @@ if "auto_flop" in st.session_state:
             st.markdown("- ShiftFlop 特徴:")
             for f, delta in shift_feats.items():
                 st.markdown(f"　・{f}: {round(delta,2)}%")
-# --- CSV保存処理（このブロックを既存の if st.button("CSV保存"): 以下と置き換えてください） ---
+# --- CSV保存処理 ---
 if st.button("CSV保存"):
     import ast
     csv_rows = []
@@ -190,7 +190,7 @@ if st.button("CSV保存"):
     for hand_str, flop_list in auto_flop.items():
         static_wr_pf = round(get_static_preflop_winrate(hand_str), 2)
 
-        # Hand info row
+        # --- Hand info ---
         csv_rows.append({
             "Stage": "HandInfo",
             "Flop": "",
@@ -203,15 +203,22 @@ if st.button("CSV保存"):
             "Hand": hand_str
         })
 
+        # --- 各フロップごとの処理 ---
         for i, flop_entry in enumerate(flop_list):
-            # flop_entry expected: (flop_cards_str, static_wr_flop, shift_feats)
-            try:
-                flop_cards_str, static_wr_flop, shift_feats = flop_entry
-            except Exception:
-                # 念のため耐性：形式が違ったらスキップ
-                continue
+            # どんな形式でも安全に取り出す
+            flop_cards_str, static_wr_flop, shift_feats = None, None, {}
+            if isinstance(flop_entry, (list, tuple)) and len(flop_entry) >= 3:
+                flop_cards_str, static_wr_flop, shift_feats = flop_entry[:3]
+            elif isinstance(flop_entry, (list, tuple)) and len(flop_entry) == 2:
+                flop_cards_str, static_wr_flop = flop_entry
+            elif isinstance(flop_entry, dict):
+                flop_cards_str = flop_entry.get("flop", [])
+                static_wr_flop = flop_entry.get("winrate", 0)
+                shift_feats = flop_entry.get("shifts", {})
 
-            flop_str = ' '.join(flop_cards_str)
+            flop_str = ' '.join(flop_cards_str) if flop_cards_str else f"Flop{i+1}"
+            static_wr_flop = static_wr_flop or static_wr_pf
+
             csv_rows.append({
                 "Stage": f"=== Flop {i+1}: {flop_str} ===",
                 "Flop": "",
@@ -224,8 +231,8 @@ if st.button("CSV保存"):
                 "Hand": hand_str
             })
 
-            # --- ShiftFlop: shift_feats は辞書 expected ---
-            if isinstance(shift_feats, dict):
+            # --- ShiftFlop出力 ---
+            if isinstance(shift_feats, dict) and shift_feats:
                 for f, delta in shift_feats.items():
                     csv_rows.append({
                         "Stage": "ShiftFlop",
@@ -239,250 +246,90 @@ if st.button("CSV保存"):
                         "Hand": hand_str
                     })
 
-            # --- ShiftTurn: 正規化して全ターンエントリを列挙 ---
-            turn_entries = []
+            # --- ShiftTurn出力 ---
             if hand_str in auto_turn:
                 tlist = auto_turn[hand_str]
                 if i < len(tlist):
-                    turn_entries_raw = tlist[i]
-                    # 新形式: dict with "turn_card" and "all"
-                    if isinstance(turn_entries_raw, dict) and "all" in turn_entries_raw:
-                        # turn_entries_raw could represent a single turn card with its all-list
-                        turn_entries.append(turn_entries_raw)
-                    elif isinstance(turn_entries_raw, (list, tuple)):
-                        # 既に [ {turn_entry}, {turn_entry}, ... ] という形式か
-                        # または (all, top10, bottom10)
-                        for el in turn_entries_raw:
-                            # if tuple like (all, top10, bottom10) -> try to normalize
-                            if isinstance(el, tuple) and len(el) == 3:
-                                all_list = el[0] if el[0] else []
-                                turn_entries.append({"turn_card": None, "all": all_list})
-                            elif isinstance(el, dict) and ("all" in el or "turn_card" in el):
-                                turn_entries.append(el)
-                            elif isinstance(el, dict):
-                                # もし要素が単純な dict（すでに単個エントリ）ならそのまま all に包む
-                                turn_entries.append({"turn_card": el.get("turn_card", None), "all": el.get("all", [el])})
-                            elif isinstance(el, str):
-                                # 文字列化された JSON の可能性
-                                try:
-                                    parsed = ast.literal_eval(el)
-                                    if isinstance(parsed, dict):
-                                        turn_entries.append(parsed if "all" in parsed else {"turn_card": parsed.get("turn_card"), "all": parsed.get("all", [parsed])})
-                                except Exception:
-                                    continue
-                    elif isinstance(turn_entries_raw, str):
-                        # 文字列化されたリスト/辞書
-                        try:
-                            parsed = ast.literal_eval(turn_entries_raw)
-                            if isinstance(parsed, dict) and "all" in parsed:
-                                turn_entries.append(parsed)
-                            elif isinstance(parsed, list):
-                                for el in parsed:
-                                    if isinstance(el, dict):
-                                        turn_entries.append({"turn_card": el.get("turn_card"), "all": parsed})
-                        except Exception:
-                            pass
-
-            # now turn_entries is a list of dicts each with keys like "turn_card" and "all"
-            seen_turn = set()
-            for tentry in turn_entries:
-                # Normalize inner list of turns
-                all_turns = tentry.get("all") if isinstance(tentry, dict) else tentry
-                if isinstance(all_turns, str):
-                    try:
-                        all_turns = ast.literal_eval(all_turns)
-                    except Exception:
-                        all_turns = []
-                if not isinstance(all_turns, list):
-                    all_turns = [all_turns]
-
-                for item in all_turns:
-                    if isinstance(item, str):
-                        try:
-                            item = ast.literal_eval(item)
-                        except Exception:
-                            continue
-                    if not isinstance(item, dict):
-                        continue
-                    tc = item.get("turn_card", None)
-                    if tc in seen_turn:
-                        continue
-                    seen_turn.add(tc)
-                    made = item.get("hand_rank", "―")
-                    if made == "high_card":
-                        made = "―"
-                    feats = [f for f in item.get("features", []) if f.startswith("newmade_")]
-                    if not feats:
-                        feats = ["―"]
-                    wr = item.get("winrate", None)
-                    shift = None
-                    if wr is not None:
-                        try:
-                            shift = round(float(wr) - float(static_wr_flop), 2)
-                            wr = round(float(wr), 2)
-                        except Exception:
-                            shift = ""
-                    csv_rows.append({
-                        "Stage": "ShiftTurn",
-                        "Flop": flop_str,
-                        "Turn": tc or "―",
-                        "Detail": tc or "―",
-                        "Shift": shift,
-                        "Winrate": wr if wr is not None else "―",
-                        "Features": ', '.join(feats),
-                        "Role": made,
-                        "Hand": hand_str
-                    })
-
-            # --- ShiftRiver: 同様に正規化して保存（存在すれば） ---
-            if hand_str in auto_river:
-                rlist = auto_river[hand_str]
-                if i < len(rlist):
-                    river_raw = rlist[i]
-
-                    # normalize to dict with "turn_card" and "all" (list of river dicts)
-                    if isinstance(river_raw, dict) and "all" in river_raw:
-                        turn_card = river_raw.get("turn_card", "")
-                        river_items = river_raw.get("all", [])
-                    elif isinstance(river_raw, tuple) and len(river_raw) >= 3:
-                        # old-style: (flop_cards, turn_card, all_rivers, top10, bottom10) etc.
-                        turn_card = river_raw[1] if len(river_raw) > 1 else ""
-                        # try to extract a combined list of river dicts
-                        possible = []
-                        for part in river_raw[2:]:
-                            if isinstance(part, list):
-                                possible.extend(part)
-                        river_items = possible
-                    elif isinstance(river_raw, list):
-                        # maybe a list of dicts already
-                        river_items = river_raw
-                        turn_card = ""
-                    elif isinstance(river_raw, str):
-                        try:
-                            parsed = ast.literal_eval(river_raw)
-                            if isinstance(parsed, dict) and "all" in parsed:
-                                turn_card = parsed.get("turn_card", "")
-                                river_items = parsed.get("all", [])
-                            elif isinstance(parsed, list):
-                                turn_card = ""
-                                river_items = parsed
-                            else:
-                                turn_card = ""
-                                river_items = []
-                        except Exception:
-                            turn_card = ""
-                            river_items = []
+                    turn_data = tlist[i]
+                    if isinstance(turn_data, dict) and "all" in turn_data:
+                        turn_items = turn_data["all"]
+                    elif isinstance(turn_data, (list, tuple)):
+                        turn_items = turn_data[0] if isinstance(turn_data[0], list) else turn_data
                     else:
-                        turn_card = ""
-                        river_items = []
+                        turn_items = []
 
-                    # possibly stringified items inside river_items
-                    norm_rivers = []
-                    for it in river_items:
-                        if isinstance(it, str):
-                            try:
-                                parsed = ast.literal_eval(it)
-                                if isinstance(parsed, dict):
-                                    norm_rivers.append(parsed)
-                            except Exception:
-                                continue
-                        elif isinstance(it, dict):
-                            norm_rivers.append(it)
-                    # dedupe and write
-                    seen_river = set()
-                    # turn_wr: attempt to find matching turn winrate from auto_turn
-                    turn_wr = static_wr_flop
-                    # search auto_turn normalized entries for matching turn_card
-                    if hand_str in auto_turn:
-                        tlist2 = auto_turn[hand_str]
-                        if i < len(tlist2):
-                            traw = tlist2[i]
-                            # extract all items similar to above
-                            candidate_turn_items = []
-                            if isinstance(traw, dict) and "all" in traw:
-                                candidate_turn_items = traw.get("all", [])
-                            elif isinstance(traw, (list, tuple)):
-                                # flatten lists of dicts
-                                for part in traw:
-                                    if isinstance(part, list):
-                                        candidate_turn_items.extend(part)
-                                    elif isinstance(part, dict) and "turn_card" in part:
-                                        candidate_turn_items.append(part)
-                                    elif isinstance(part, str):
-                                        try:
-                                            p = ast.literal_eval(part)
-                                            if isinstance(p, dict):
-                                                candidate_turn_items.append(p)
-                                        except Exception:
-                                            pass
-                            for titem in candidate_turn_items:
-                                if isinstance(titem, dict) and titem.get("turn_card") == turn_card:
-                                    turn_wr = titem.get("winrate", turn_wr)
-                                    break
-
-                    for item in norm_rivers:
-                        rc = item.get("river_card")
-                        if rc is None or rc in seen_river:
+                    for t in turn_items:
+                        if not isinstance(t, dict):
                             continue
-                        seen_river.add(rc)
-                        made = item.get("hand_rank", "―")
-                        if made == "high_card":
-                            made = "―"
-                        feats = [f for f in item.get("features", []) if f.startswith("newmade_")]
-                        if not feats:
-                            feats = ["―"]
-                        wr = item.get("winrate", turn_wr)
-                        try:
-                            shift = round(float(wr) - float(turn_wr), 2)
-                        except Exception:
-                            shift = ""
-                        # --- 特徴量（board feature）を取得 ---
-                        try:
-                            board_feats = classify_flop_turn_pattern(flop_board, turn_card, rc)
-                        except Exception as e:
-                            board_feats = [f"error:{e}"]
-
-                        # --- ニューメイド特徴ロジック ---
-                        feats = []
-
-                        if made.startswith("newmade_"):
-                            # 役が進化した場合 → 役だけ記録、特徴は空
-                            feats = ["―"]
-                        else:
-                            # 役が進化していない場合 → ボードの新特徴をチェック
-                            newmade_feats = [f"newmade_{bf}" for bf in board_feats if bf in [
-                                "straight_draw", "gutshot_draw_4", "three_straight", "flush_draw", "three_flush"
-                            ]]
-                            if newmade_feats:
-                                feats = newmade_feats
-                            else:
-                                feats = ["―"]   
+                        tc = t.get("turn_card", "―")
+                        wr_t = t.get("winrate", None)
+                        made = t.get("hand_rank", "―")
+                        feats = ', '.join(t.get("features", []))
+                        shift_t = None
+                        if wr_t is not None:
+                            try:
+                                shift_t = round(float(wr_t) - float(static_wr_flop), 2)
+                                wr_t = round(float(wr_t), 2)
+                            except Exception:
+                                shift_t = ""
                         csv_rows.append({
-                            "Stage": "ShiftRiver",
+                            "Stage": "ShiftTurn",
                             "Flop": flop_str,
-                            "Turn": turn_card or "―",
-                            "Detail": rc,
-                            "Shift": shift,
-                            "Winrate": round(float(wr), 2) if isinstance(wr, (float, int, str)) and str(wr).replace('.','',1).isdigit() else wr,
-                            "Features": ', '.join(feats),
+                            "Turn": tc,
+                            "Detail": tc,
+                            "Shift": shift_t,
+                            "Winrate": wr_t,
+                            "Features": feats,
                             "Role": made,
                             "Hand": hand_str
                         })
 
-    # 最終的に DataFrame にしてセッションに保存
+            # --- ShiftRiver出力 ---
+            if hand_str in auto_river:
+                rlist = auto_river[hand_str]
+                if i < len(rlist):
+                    river_data = rlist[i]
+                    if isinstance(river_data, dict) and "all" in river_data:
+                        river_items = river_data["all"]
+                    elif isinstance(river_data, (list, tuple)):
+                        river_items = river_data[0] if isinstance(river_data[0], list) else river_data
+                    else:
+                        river_items = []
+
+                    for r in river_items:
+                        if not isinstance(r, dict):
+                            continue
+                        rc = r.get("river_card", "―")
+                        wr_r = r.get("winrate", None)
+                        made_r = r.get("hand_rank", "―")
+                        feats_r = ', '.join(r.get("features", []))
+                        shift_r = None
+                        if wr_r is not None:
+                            try:
+                                shift_r = round(float(wr_r) - float(static_wr_flop), 2)
+                                wr_r = round(float(wr_r), 2)
+                            except Exception:
+                                shift_r = ""
+                        csv_rows.append({
+                            "Stage": "ShiftRiver",
+                            "Flop": flop_str,
+                            "Turn": "",
+                            "Detail": rc,
+                            "Shift": shift_r,
+                            "Winrate": wr_r,
+                            "Features": feats_r,
+                            "Role": made_r,
+                            "Hand": hand_str
+                        })
+
     df = pd.DataFrame(csv_rows)
-    st.session_state["csv_data"] = df.to_csv(index=False)
-    st.success("CSVをセッションに保存しました")
-    # --- CSV ダウンロードボタンを表示 ---
-if "csv_data" in st.session_state and st.session_state["csv_data"]:
     st.download_button(
-        label="📥 CSVをダウンロード",
-        data=st.session_state["csv_data"],
+        label="📥 CSVダウンロード",
+        data=df.to_csv(index=False),
         file_name="shift_results.csv",
         mime="text/csv"
     )
-else:
-    st.warning("CSVがまだ生成されていません。Shift計算を先に実行してください。")
+    st.success("全ステージ（Flop, Turn, River）を含むCSVを生成しました ✅")
 import streamlit as st
 import pandas as pd
 import re
