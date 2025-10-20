@@ -178,7 +178,6 @@ if "auto_flop" in st.session_state:
             st.markdown("- ShiftFlop 特徴:")
             for f, delta in shift_feats.items():
                 st.markdown(f"　・{f}: {round(delta,2)}%")
-# --- CSV保存処理 ---
 if st.button("CSV保存"):
     import ast
     csv_rows = []
@@ -232,7 +231,7 @@ if st.button("CSV保存"):
                 "Hand": hand_str
             })
 
-            # === ShiftFlop 出力 ===
+            # === ShiftFlop ===
             if shift_feats:
                 for f, delta in shift_feats.items():
                     csv_rows.append({
@@ -247,7 +246,7 @@ if st.button("CSV保存"):
                         "Hand": hand_str
                     })
 
-            # === ShiftTurn 出力 ===
+            # === ShiftTurn + ShiftRiver ===
             if hand_str in auto_turn:
                 turn_list = auto_turn[hand_str]
                 if i < len(turn_list):
@@ -258,7 +257,8 @@ if st.button("CSV保存"):
                     elif isinstance(turn_data, (list, tuple)):
                         turn_items = turn_data
 
-                    for t in turn_items:
+                    # --- 各ターン ---
+                    for turn_index, t in enumerate(turn_items):
                         if not isinstance(t, dict):
                             continue
                         tc = t.get("turn_card", "―")
@@ -266,6 +266,7 @@ if st.button("CSV保存"):
                         made_t = t.get("hand_rank", "―")
                         feats_t = ', '.join(t.get("features", []))
                         shift_t = round(wr_t - static_wr_flop, 2)
+
                         csv_rows.append({
                             "Stage": "ShiftTurn",
                             "Flop": flop_str,
@@ -278,33 +279,34 @@ if st.button("CSV保存"):
                             "Hand": hand_str
                         })
 
-                        # === 対応するリバー出力 ===
+                        # --- 対応するリバー群（ターンごとに独立） ---
                         if hand_str in auto_river:
                             rlist = auto_river[hand_str]
                             if i < len(rlist):
                                 river_data = rlist[i]
                                 river_items = river_data.get("all", []) if isinstance(river_data, dict) else []
-                                for r in river_items:
-                                    if not isinstance(r, dict):
-                                        continue
-                                    rc = r.get("river_card", "―")
-                                    wr_r = r.get("winrate", 0)
-                                    made_r = r.get("hand_rank", "―")
-                                    feats_r = ', '.join(r.get("features", []))
-                                    shift_r = round(wr_r - wr_t, 2)  # ターン→リバーの差
-                                    csv_rows.append({
-                                        "Stage": "ShiftRiver",
-                                        "Flop": flop_str,
-                                        "Turn": tc,
-                                        "Detail": rc,
-                                        "Shift": shift_r,
-                                        "Winrate": round(wr_r, 2),
-                                        "Features": feats_r,
-                                        "Role": made_r,
-                                        "Hand": hand_str
-                                    })
+                                if turn_index < len(river_items):  # 各ターンに対応
+                                    for r in river_items[turn_index]:
+                                        if not isinstance(r, dict):
+                                            continue
+                                        rc = r.get("river_card", "―")
+                                        wr_r = r.get("winrate", 0)
+                                        made_r = r.get("hand_rank", "―")
+                                        feats_r = ', '.join(r.get("features", []))
+                                        shift_r = round(wr_r - wr_t, 2)
+                                        csv_rows.append({
+                                            "Stage": "ShiftRiver",
+                                            "Flop": flop_str,
+                                            "Turn": tc,
+                                            "Detail": rc,
+                                            "Shift": shift_r,
+                                            "Winrate": round(wr_r, 2),
+                                            "Features": feats_r,
+                                            "Role": made_r,
+                                            "Hand": hand_str
+                                        })
 
-    # --- 最後に保存 ---
+    # --- 保存 ---
     df = pd.DataFrame(csv_rows)
     st.download_button(
         label="📥 CSVダウンロード",
@@ -312,7 +314,7 @@ if st.button("CSV保存"):
         file_name="shift_results.csv",
         mime="text/csv"
     )
-    st.success("全ステージ（Flop, Turn, River）を含むCSVを生成しました ✅")
+    st.success("全ステージ（Flop・Turn・River）を含むCSVを生成しました ✅")
 import streamlit as st
 import pandas as pd
 import re
