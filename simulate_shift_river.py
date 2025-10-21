@@ -121,7 +121,7 @@ def is_straight(values):
     return False
 
 def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
-    # ★ ここで型をfloatに統一（重要）
+    # --- 型をfloatに統一 ---
     try:
         static_turn_winrate = float(static_turn_winrate)
     except:
@@ -132,6 +132,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     turn_candidates = generate_turns(flop_cards, hole_cards, n_turns=turn_count)
     all_results = []
 
+    # --- 複数ターンに対応 ---
     for turn_card in turn_candidates:
         board4 = flop_cards + [turn_card]
         feats_before = classify_flop_turn_pattern(flop_cards, turn_card)
@@ -141,16 +142,15 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
         for river in river_candidates:
             full_board = board4 + [river]
             river_winrate = simulate_vs_random(hole_cards, full_board, iterations=trials_per_river)
-
-            # ★ float化済みなので安全に計算
             shift = round(float(river_winrate) - static_turn_winrate, 2)
 
             features = []
             made_after = detect_made_hand(hole_cards, full_board)
             hole_involved = count_holecards_in_made_hand(hole_cards, full_board, made_after[0])
 
+            # --- 役変化時 ---
             if made_after[0] != made_before[0] and made_after[0] != "high_card":
-                features.append(f"newmade_{made_after[0]}_{hole_involved}cards")
+                features.append(f"newmade_{made_after[0]}_hc{hole_involved}")
             else:
                 feats_after = classify_flop_turn_pattern(flop_cards, turn_card, river)
                 new_feats = [f for f in feats_after if f not in feats_before]
@@ -176,6 +176,5 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-
 def run_shift_river(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
     return simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count, trials_per_river)
