@@ -4,6 +4,9 @@ import pandas as pd
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
+# -----------------------------
+# Utility functions
+# -----------------------------
 def convert_rank_to_value(rank):
     rank_map = {'2':2,'3':3,'4':4,'5':5,'6':6,
                 '7':7,'8':8,'9':9,'T':10,'J':11,'Q':12,'K':13,'A':14}
@@ -12,32 +15,40 @@ def convert_rank_to_value(rank):
     return rank_map[str(rank)]
 
 def generate_turns(flop_cards, hole_cards, n_turns=None):
-    used_cards = set(flop_cards + hole_cards)
-    deck = [c for c in eval7.Deck() if c not in used_cards]
+    used_str = {str(c) for c in flop_cards + hole_cards}
+    deck = [c for c in eval7.Deck() if str(c) not in used_str]
     if n_turns is None or n_turns >= len(deck):
         return deck
     random.shuffle(deck)
     return deck[:n_turns]
 
 def generate_rivers(board4, hole_cards):
-    used_cards = set(board4 + hole_cards)
-    return [c for c in eval7.Deck() if c not in used_cards]
+    used_str = {str(c) for c in board4 + hole_cards}
+    return [c for c in eval7.Deck() if str(c) not in used_str]
 
+# -----------------------------
+# Monte Carlo Simulation
+# -----------------------------
 def simulate_vs_random(my_hand, board_full, iterations=1000):
-    used_cards = set(board_full + my_hand)
+    used_str = {str(c) for c in board_full + my_hand}
+    deck = [c for c in eval7.Deck() if str(c) not in used_str]
     wins = ties = 0
+    my_score = eval7.evaluate(my_hand + board_full)
+
     for _ in range(iterations):
-        deck = [c for c in eval7.Deck() if c not in used_cards]
         random.shuffle(deck)
         opp_hand = deck[:2]
-        my_score = eval7.evaluate(my_hand + board_full)
         opp_score = eval7.evaluate(opp_hand + board_full)
         if my_score > opp_score:
             wins += 1
         elif my_score == opp_score:
             ties += 1
+
     return (wins + ties / 2) / iterations * 100
 
+# -----------------------------
+# Hand Detection
+# -----------------------------
 def detect_made_hand(hole_cards, board_cards):
     all_cards = hole_cards + board_cards
     ranks = [c.rank for c in all_cards]
@@ -104,6 +115,9 @@ def count_holecards_in_made_hand(hole_cards, board_cards, hand_name):
         return 0
     return 0
 
+# -----------------------------
+# Helper functions
+# -----------------------------
 def is_overcard_river(hole_cards, river_card):
     if hole_cards[0].rank != hole_cards[1].rank:
         return False
@@ -120,8 +134,11 @@ def is_straight(values):
         return True
     return False
 
+# -----------------------------
+# Main simulation
+# -----------------------------
 def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
-    # --- 型をfloatに統一 ---
+    # --- 型統一 ---
     try:
         static_turn_winrate = float(static_turn_winrate)
     except:
@@ -132,7 +149,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     turn_candidates = generate_turns(flop_cards, hole_cards, n_turns=turn_count)
     all_results = []
 
-    # --- 複数ターンに対応 ---
+    # --- 各ターンごとにリバー全探索 ---
     for turn_card in turn_candidates:
         board4 = flop_cards + [turn_card]
         feats_before = classify_flop_turn_pattern(flop_cards, turn_card)
@@ -142,13 +159,12 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
         for river in river_candidates:
             full_board = board4 + [river]
             river_winrate = simulate_vs_random(hole_cards, full_board, iterations=trials_per_river)
-            shift = round(float(river_winrate) - static_turn_winrate, 2)
+            shift = round(river_winrate - static_turn_winrate, 2)
 
-            features = []
             made_after = detect_made_hand(hole_cards, full_board)
             hole_involved = count_holecards_in_made_hand(hole_cards, full_board, made_after[0])
 
-            # --- 役変化時 ---
+            features = []
             if made_after[0] != made_before[0] and made_after[0] != "high_card":
                 features.append(f"newmade_{made_after[0]}_hc{hole_involved}")
             else:
@@ -176,5 +192,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
+
+
 def run_shift_river(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
     return simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count, trials_per_river)
