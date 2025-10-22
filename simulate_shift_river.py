@@ -15,6 +15,7 @@ def convert_rank_to_value(rank):
     return rank_map[str(rank)]
 
 def generate_turns(flop_cards, hole_cards, n_turns=None):
+    """フロップ＋ホールカード以外からターン候補を生成"""
     used_str = {str(c) for c in flop_cards + hole_cards}
     deck = [c for c in eval7.Deck() if str(c) not in used_str]
     if n_turns is None or n_turns >= len(deck):
@@ -23,6 +24,7 @@ def generate_turns(flop_cards, hole_cards, n_turns=None):
     return deck[:n_turns]
 
 def generate_rivers(board4, hole_cards):
+    """ターン＋フロップ＋ホールカード以外からリバー候補を生成"""
     used_str = {str(c) for c in board4 + hole_cards}
     return [c for c in eval7.Deck() if str(c) not in used_str]
 
@@ -30,14 +32,16 @@ def generate_rivers(board4, hole_cards):
 # Monte Carlo Simulation
 # -----------------------------
 def simulate_vs_random(my_hand, board_full, iterations=1000):
-    used_str = {str(c) for c in board_full + my_hand}
-    deck = [c for c in eval7.Deck() if str(c) not in used_str]
+    """指定ボードでの自分の勝率をモンテカルロで算出"""
     wins = ties = 0
-    my_score = eval7.evaluate(my_hand + board_full)
+    deck = eval7.Deck()
+    used = {str(c) for c in my_hand + board_full}
+    deck = [c for c in deck if str(c) not in used]
 
     for _ in range(iterations):
         random.shuffle(deck)
         opp_hand = deck[:2]
+        my_score = eval7.evaluate(my_hand + board_full)
         opp_score = eval7.evaluate(opp_hand + board_full)
         if my_score > opp_score:
             wins += 1
@@ -81,6 +85,7 @@ def detect_made_hand(hole_cards, board_cards):
     return ["high_card"]
 
 def count_holecards_in_made_hand(hole_cards, board_cards, hand_name):
+    """完成役にホールカードが何枚関与しているかを数える"""
     all_cards = hole_cards + board_cards
     ranks = [c.rank for c in all_cards]
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
@@ -119,6 +124,7 @@ def count_holecards_in_made_hand(hole_cards, board_cards, hand_name):
 # Helper functions
 # -----------------------------
 def is_overcard_river(hole_cards, river_card):
+    """リバーでペアハンドを上回るカードが出たかを判定"""
     if hole_cards[0].rank != hole_cards[1].rank:
         return False
     pair_rank = convert_rank_to_value(hole_cards[0].rank)
@@ -130,7 +136,7 @@ def is_straight(values):
     for i in range(len(unique_values) - 4):
         if unique_values[i] - unique_values[i + 4] == 4:
             return True
-    if set([14, 2, 3, 4, 5]).issubset(set(values)):
+    if {14, 2, 3, 4, 5}.issubset(set(values)):
         return True
     return False
 
@@ -138,7 +144,7 @@ def is_straight(values):
 # Main simulation
 # -----------------------------
 def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
-    # --- 型統一 ---
+    """複数ターン × 全リバー の勝率変動を計算して保存"""
     try:
         static_turn_winrate = float(static_turn_winrate)
     except:
@@ -179,7 +185,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
                 'river_card': str(river),
                 'winrate': round(river_winrate, 2),
                 'shift': shift,
-                'features': features,
+                'features': ','.join(features),
                 'hand_rank': made_after[0],
                 'hole_involved': hole_involved
             })
