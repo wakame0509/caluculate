@@ -64,7 +64,7 @@ if mode == "自動生成モード":
                     if sample not in flops_str:
                         flops_str.append(sample)
 
-                                flop_results, turn_results, river_results = [], [], []
+                        flop_results, turn_results, river_results = [], [], []
                 static_wr_pf = get_static_preflop_winrate(hand)
 
                 # 進捗表示
