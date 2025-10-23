@@ -111,8 +111,9 @@ if mode == "自動生成モード":
                             hand,
                             flop_cards + [eval7.Card(t_card)],
                             turn_wr,
-                            trials
-                        )
+                            turn_count=1,             # ← 各ターン1枚ずつ
+                            trials_per_river=trials   # ← この値は今は無視されるが形式的に残す
+)
 
                         # 結果を統合
                         river_items_total.extend(river_items)
