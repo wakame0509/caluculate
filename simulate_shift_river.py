@@ -256,4 +256,10 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     return results_sorted, top10, bottom10
 
 def run_shift_river(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
-    return simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count, trials_per_river)
+    """
+    指定ターン枚数に対してリバーを全探索し、結果を(全件, top10, bottom10)形式で返す。
+    """
+    results_sorted, top10, bottom10 = simulate_shift_river_multiple_turns(
+        hand_str, flop_cards_str, static_turn_winrate, turn_count, trials_per_river
+    )
+    return results_sorted, top10, bottom10
