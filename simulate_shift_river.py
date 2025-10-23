@@ -156,6 +156,56 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     all_results = []
 
     # --- 各ターンごとにリバー全探索 ---
+    import itertools
+
+# --- 追加ヘルパー：相手ハンドを全列挙して正確な勝率を計算 ---
+def enumerate_vs_all(my_hand, board_full):
+    """
+    my_hand: list of eval7.Card (自分のホール2枚)
+    board_full: list of eval7.Card (フロップ+ターン+リバー の5枚固定)
+    return: winrate% (float)
+    """
+    used_str = {str(c) for c in my_hand + board_full}
+    # 残りデッキ（Card オブジェクトのリスト）
+    remaining = [c for c in eval7.Deck() if str(c) not in used_str]
+
+    wins = ties = 0
+    total = 0
+
+    # 全組合せで相手ハンドを列挙
+    for opp_pair in itertools.combinations(remaining, 2):
+        total += 1
+        opp_hand = list(opp_pair)
+        my_score = eval7.evaluate(my_hand + board_full)
+        opp_score = eval7.evaluate(opp_hand + board_full)
+        if my_score > opp_score:
+            wins += 1
+        elif my_score == opp_score:
+            ties += 1
+
+    if total == 0:
+        return 0.0
+    return (wins + ties / 2) / total * 100.0
+
+# --- 修正版メイン関数（リバーは全列挙で評価） ---
+def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
+    """
+    役の命名（hc付け）や出力形式は既存と同じに保つ。
+    この関数では各指定ターンに対してリバー全通り（ターン+フロップ+ホールを除いた残り）を列挙して、
+    相手ハンドを全組合せで評価してリバ―勝率を求めます（モンテカルロは使いません）。
+    """
+    # --- 型統一 ---
+    try:
+        static_turn_winrate = float(static_turn_winrate)
+    except:
+        static_turn_winrate = 0.0
+
+    hole_cards = hand_str_to_cards(hand_str)
+    flop_cards = [eval7.Card(c) if isinstance(c, str) else c for c in flop_cards_str]
+    turn_candidates = generate_turns(flop_cards, hole_cards, n_turns=turn_count)
+    all_results = []
+
+    # 各ターンごとにリバー全探索（リバーは相手ハンド全列挙で評価）
     for turn_card in turn_candidates:
         board4 = flop_cards + [turn_card]
         feats_before = classify_flop_turn_pattern(flop_cards, turn_card)
@@ -164,7 +214,12 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
 
         for river in river_candidates:
             full_board = board4 + [river]
-            river_winrate = simulate_vs_random(hole_cards, full_board, iterations=trials_per_river)
+
+            # ← ここをモンテカルロではなく全列挙で正確に評価
+            river_winrate = enumerate_vs_all(hole_cards, full_board)
+
+            # shift はフロップ基準との差にするなら static_turn_winrate との差分
+            # （ご希望に合わせてターン基準 or フロップ基準に変更可能）
             shift = round(river_winrate - static_turn_winrate, 2)
 
             made_after = detect_made_hand(hole_cards, full_board)
@@ -185,7 +240,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
                 'river_card': str(river),
                 'winrate': round(river_winrate, 2),
                 'shift': shift,
-                'features': ','.join(features),
+                'features': features,
                 'hand_rank': made_after[0],
                 'hole_involved': hole_involved
             })
@@ -198,7 +253,6 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
-
 
 def run_shift_river(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
     return simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count, trials_per_river)
