@@ -82,7 +82,7 @@ if mode == "自動生成モード":
                     # --- ターン・リバー処理（改良版） ---
                     # 1. ターン47通りすべて計算
                     turn_all_items, turn_top10, turn_bottom10 = run_shift_turn(
-                        hand, flop_cards, flop_wr, trials, turn_count=None
+                        hand, flop_cards, flop_wr, trials
                     )
 
                     # turn_all_items は各ターンカードの結果リスト（47通り）
