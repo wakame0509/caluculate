@@ -1,6 +1,7 @@
 import eval7
 import random
 import pandas as pd
+import itertools
 from board_patterns import classify_flop_turn_pattern
 from hand_utils import hand_str_to_cards
 
