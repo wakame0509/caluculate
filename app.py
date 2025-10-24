@@ -45,19 +45,52 @@ if mode == "プリフロップ勝率":
 
 # ==== 自動生成モード（ShiftFlop→ShiftTurn→ShiftRiver） ====
 elif mode == "自動生成モード":
-    st.header("フロップ → ターン → リバー 勝率変動 自動生成")
+    st.header("プリフロップ → フロップ → ターン → リバー 勝率変動 自動生成")
 
+    # === ハンド選択 ===
+    st.subheader("スターティングハンドを選択")
+    ranks = '23456789TJQKA'
+    suits = 'hdcs'
+    all_hands = []
+
+    # 全169ハンドを生成（スート差なし）
+    for i, r1 in enumerate(ranks):
+        for j, r2 in enumerate(ranks):
+            if i < j:
+                all_hands.append(r2 + r1 + "s")  # スーテッド
+                all_hands.append(r2 + r1 + "o")  # オフスート
+            elif i == j:
+                all_hands.append(r1 + r2)  # ペア
+
+    selected_hands = st.multiselect(
+        "対象ハンドを選択（複数可）", 
+        sorted(all_hands), 
+        default=["AKs"]
+    )
+
+    # === プリフロップ勝率表示 ===
+    st.subheader("プリフロップ勝率（ランダム相手）")
+    if selected_hands:
+        pf_data = []
+        for hand in selected_hands:
+            pf_winrate = get_static_preflop_winrate(hand)
+            pf_data.append({"ハンド": hand, "プリフロップ勝率": f"{pf_winrate:.2f}%"})
+        st.table(pf_data)
+
+    # === 自動生成設定 ===
+    st.subheader("自動生成パラメータ設定")
     trials = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
     flop_count = st.selectbox("フロップ枚数", [5, 10, 20, 30])
     turn_count = st.selectbox("ターンカード枚数", [5, 10, 20, 30])
 
+    # === 実行ボタン ===
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
         deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
         batch_flop, batch_turn, batch_river = {}, {}, {}
 
         for hand in selected_hands:
             with st.spinner(f"ハンド {hand} を処理中..."):
-                # フロップ生成
+                # --- フロップ生成 ---
                 flops_str = []
                 while len(flops_str) < flop_count:
                     sample = random.sample(deck_full, 3)
@@ -67,7 +100,7 @@ elif mode == "自動生成モード":
                 flop_results, turn_results, river_results = [], [], []
                 static_wr_pf = get_static_preflop_winrate(hand)
 
-                # 進捗表示
+                # --- 進捗バー ---
                 flop_progress = st.progress(0)
                 flop_status = st.empty()
                 total_flops = len(flops_str)
@@ -125,8 +158,6 @@ elif mode == "自動生成モード":
         st.session_state["auto_flop"] = batch_flop
         st.session_state["auto_turn"] = batch_turn
         st.session_state["auto_river"] = batch_river
-
-    
         # --- CSV出力 ---
         col1, col2 = st.columns([1, 1])
         with col1:
