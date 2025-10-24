@@ -24,7 +24,7 @@ mode = st.radio("モードを選択", ["プリフロップ勝率", "自動生成
 
 
 # ==== プリフロップ勝率生成モード ====
-if mode == "プリフロップ勝率生成":
+if mode == "プリフロップ勝率":
     st.header("プリフロップ勝率生成（ランダムハンド vs ランダムハンド）")
 
     trials_pf = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
@@ -44,7 +44,7 @@ if mode == "プリフロップ勝率生成":
 
 
 # ==== 自動生成モード（ShiftFlop→ShiftTurn→ShiftRiver） ====
-elif mode == "自動生成（ShiftFlop→ShiftTurn→ShiftRiver）":
+elif mode == "自動生成モード":
     st.header("フロップ → ターン → リバー 勝率変動 自動生成")
 
     trials = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
