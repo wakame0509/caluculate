@@ -26,31 +26,6 @@ mode = st.radio("モードを選択", ["自動生成モード", "手動選択モ
 if mode == "プリフロップ勝率生成":
     st.header("プリフロップ勝率生成（ランダム相手）")
     trials_pf = st.selectbox("試行回数", [100000, 200000, 500000, 1000000])
-    if st.button("計算開始（CSV保存）"):
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-
-        def update_progress(i, hand, winrate):
-            progress_bar.progress(i / 169)
-            status_text.text(f"[{i}/169] {hand}: {winrate:.2f}%")
-
-        with st.spinner(f"{trials_pf:,}回のモンテカルロ計算中..."):
-            result_df = calculate_preflop_winrates_streamlit(trials=trials_pf, update_func=update_progress)
-
-        st.success("計算完了 ✅")
-        st.download_button("CSVダウンロード", result_df.to_csv(index=False), "preflop_winrates.csv", "text/csv")
-    st.stop()
-
-# --- 共通設定 ---
-ALL_HANDS = all_starting_hands
-selected_hands = st.multiselect("複数ハンドを選択してください", ALL_HANDS, default=[])
-
-# --- 自動生成モード ---
-if mode == "自動生成モード":
-    trials = st.selectbox("モンテカルロ試行回数", [1000, 10000, 50000, 100000])
-    flop_count = st.selectbox("使用するフロップの枚数", [5, 10, 20, 30])
-    turn_count = st.selectbox("使用するターンの枚数", [1, 3, 5])
-
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
     deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
     batch_flop, batch_turn, batch_river = {}, {}, {}
@@ -111,8 +86,8 @@ if mode == "自動生成モード":
                         hand,
                         flop_cards + [eval7.Card(t_card)],
                         turn_wr,
-                        turn_count=1,             # ← 各ターン1枚ずつ
-                        trials_per_river=trials   # ← 今は無視されるが形式的に残す
+                        turn_count=1,             # 各ターン1枚ずつ
+                        trials_per_river=trials   # （モンテカルロではなく全列挙で動作）
                     )
 
                     # 結果を統合
@@ -128,7 +103,6 @@ if mode == "自動生成モード":
             batch_flop[hand] = flop_results
             batch_turn[hand] = turn_results
             batch_river[hand] = river_results
-
     st.session_state["auto_flop"] = batch_flop
     st.session_state["auto_turn"] = batch_turn
     st.session_state["auto_river"] = batch_river
