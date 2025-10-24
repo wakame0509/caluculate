@@ -20,12 +20,36 @@ if "auto_river" not in st.session_state:
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（複数ハンド対応・CSV保存付き）")
 
-mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード", "プリフロップ勝率生成"])
+mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード", "プリフロップ勝率")
 
-# --- プリフロップ勝率生成モード ---
+
+# ==== プリフロップ勝率生成モード ====
 if mode == "プリフロップ勝率生成":
-    st.header("プリフロップ勝率生成（ランダム相手）")
+    st.header("プリフロップ勝率生成（ランダムハンド vs ランダムハンド）")
+
     trials_pf = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
+
+    if st.button("プリフロップ勝率を生成して保存"):
+        deck_full = [r + s for r in '23456789TJQKA' for s in 'shdc']
+
+        preflop_results = []
+        for hand in generate_169_hands():
+            win_rate = simulate_preflop_vs_random(hand, trials_pf)
+            preflop_results.append({"hand": hand, "win_rate": win_rate})
+
+        df_pf = pd.DataFrame(preflop_results)
+        df_pf.to_csv("preflop_winrates_random.csv", index=False, encoding="utf-8-sig")
+        st.success("プリフロップ勝率を preflop_winrates_random.csv に保存しました！")
+        st.dataframe(df_pf)
+
+
+# ==== 自動生成モード（ShiftFlop→ShiftTurn→ShiftRiver） ====
+elif mode == "自動生成（ShiftFlop→ShiftTurn→ShiftRiver）":
+    st.header("フロップ → ターン → リバー 勝率変動 自動生成")
+
+    trials = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
+    flop_count = st.selectbox("フロップ枚数", [5, 10, 20, 30])
+    turn_count = st.selectbox("ターンカード枚数", [5, 10, 20, 30])
 
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
         deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
@@ -55,7 +79,7 @@ if mode == "プリフロップ勝率生成":
                     flop_cards = [eval7.Card(c) for c in flop_cards_str]
                     flop_wr, shift_feats = run_shift_flop(hand, flop_cards, trials)
 
-                    # --- ターン・リバー処理（改良版） ---
+                    # --- ターン・リバー処理 ---
                     turn_all_items, turn_top10, turn_bottom10 = run_shift_turn(
                         hand, flop_cards, flop_wr, trials
                     )
@@ -97,9 +121,12 @@ if mode == "プリフロップ勝率生成":
                 batch_flop[hand] = flop_results
                 batch_turn[hand] = turn_results
                 batch_river[hand] = river_results
+
         st.session_state["auto_flop"] = batch_flop
         st.session_state["auto_turn"] = batch_turn
         st.session_state["auto_river"] = batch_river
+
+    
         # --- CSV出力 ---
         col1, col2 = st.columns([1, 1])
         with col1:
