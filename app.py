@@ -20,7 +20,7 @@ if "auto_river" not in st.session_state:
 st.set_page_config(page_title="統合 勝率変動分析", layout="centered")
 st.title("統合 勝率変動分析アプリ（複数ハンド対応・CSV保存付き）")
 
-mode = st.radio("モードを選択", ["自動生成モード", "手動選択モード", "プリフロップ勝率")
+mode = st.radio("モードを選択", ["プリフロップ勝率", "自動生成モード", "手動選択モード"])
 
 
 # ==== プリフロップ勝率生成モード ====
