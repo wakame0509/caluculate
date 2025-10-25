@@ -4,7 +4,7 @@ import random
 import eval7
 from simulate_shift_flop import run_shift_flop  # ホールカード貢献付きバージョン
 from simulate_shift_turn import run_shift_turn
-from simulate_shift_river import run_shift_river
+from simulate_shift_river import simulate_shiht_river_multiple_turns
 from hand_utils import all_starting_hands, hand_str_to_cards
 from preflop_winrates_random import get_static_preflop_winrate
 from generate_preflop_winrates import calculate_preflop_winrates_streamlit
@@ -134,7 +134,7 @@ elif mode == "自動生成モード":
                             flop_wr
                         )
 
-                        river_items, _, _ = run_shift_river(
+                        river_items, _, _ = simulate_shiht_river_multiple_turns(
                             hand,
                             flop_cards + [eval7.Card(t_card)],
                             turn_wr,
