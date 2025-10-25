@@ -49,25 +49,42 @@ elif mode == "自動生成モード":
 
     # === ハンド選択 ===
     st.subheader("スターティングハンドを選択")
-    ranks = '23456789TJQKA'
-    suits = 'hdcs'
+
+    ranks = 'AKQJT98765432'  # A系→K系→Q系…の順で整理
     all_hands = []
 
-    # 全169ハンドを生成（スート差なし）
-    for i, r1 in enumerate(ranks):
-        for j, r2 in enumerate(ranks):
+    # --- 全169ハンド生成（スート差なし）---
+    for i, r1 in enumerate(ranks[::-1]):  # 一応逆順生成（安定動作用）
+        for j, r2 in enumerate(ranks[::-1]):
             if i < j:
                 all_hands.append(r2 + r1 + "s")  # スーテッド
                 all_hands.append(r2 + r1 + "o")  # オフスート
             elif i == j:
                 all_hands.append(r1 + r2)  # ペア
 
-    selected_hands = st.multiselect(
-        "対象ハンドを選択（複数可）", 
-        sorted(all_hands), 
-        default=["AKs"]
-    )
+    # --- カスタムソート関数 ---
+    def hand_sort_key(hand):
+        rank_order = {r: i for i, r in enumerate(ranks)}
+        main_rank = hand[0]  # 先頭のランク（A系, K系, Q系...）
+        secondary_rank = hand[1]
 
+        # グループ順: A→K→Q→J→...、同グループ内はペア→スーテッド→オフスート
+        primary_idx = rank_order.get(main_rank, 99)
+        secondary_idx = rank_order.get(secondary_rank, 99)
+        suited = 0 if hand.endswith("s") else 1
+        pair = 0 if hand[0] == hand[1] else 1
+
+        return (primary_idx, pair, secondary_idx, suited)
+
+    # --- ソート適用 ---
+    all_hands_sorted = sorted(all_hands, key=hand_sort_key)
+
+    # --- Streamlit選択 ---
+    selected_hands = st.multiselect(
+        "対象ハンドを選択（複数可）",
+        all_hands_sorted,
+        default=["AKs"]
+    )  
     # === プリフロップ勝率表示 ===
     st.subheader("プリフロップ勝率（ランダム相手）")
     if selected_hands:
