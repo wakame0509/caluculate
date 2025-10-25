@@ -144,20 +144,6 @@ def is_straight(values):
 # -----------------------------
 # Main simulation
 # -----------------------------
-def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate, turn_count=1, trials_per_river=1000):
-    """複数ターン × 全リバー の勝率変動を計算して保存"""
-    try:
-        static_turn_winrate = float(static_turn_winrate)
-    except:
-        static_turn_winrate = 0.0
-
-    hole_cards = hand_str_to_cards(hand_str)
-    flop_cards = [eval7.Card(c) if isinstance(c, str) else c for c in flop_cards_str]
-    turn_candidates = generate_turns(flop_cards, hole_cards, n_turns=turn_count)
-    all_results = []
-
-    # --- 各ターンごとにリバー全探索 ---
-    import itertools
 
 # --- 追加ヘルパー：相手ハンドを全列挙して正確な勝率を計算 ---
 def enumerate_vs_all(my_hand, board_full):
