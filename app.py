@@ -282,7 +282,7 @@ if "auto_flop" in st.session_state:
                 })
 
                 # --- ShiftFlop ---
-                if isinstance(shift_feats, dict):
+                if isinstance(shift_feats, dict) and len(shift_feats) > 0:
                     for f, delta in shift_feats.items():
                         csv_rows.append({
                             "Stage": "ShiftFlop",
@@ -295,6 +295,19 @@ if "auto_flop" in st.session_state:
                             "Role": "",
                             "Hand": hand_str
                         })
+                else:
+                    # 空dictでも1行だけ出力（ShiftFlop結果が失われないように）
+                    csv_rows.append({
+                        "Stage": "ShiftFlop",
+                        "Flop": flop_str,
+                        "Turn": "",
+                        "Detail": "―",
+                        "Shift": "",
+                        "Winrate": static_wr_flop,
+                        "Features": "",
+                        "Role": "",
+                        "Hand": hand_str
+                    })
 
                 # --- ShiftTurn ---
                 turn_entries = []
@@ -383,42 +396,29 @@ if "auto_flop" in st.session_state:
                 if hand_str in auto_river:
                     rlist = auto_river[hand_str]
                     if i < len(rlist):
-                        river_raw = rlist[i]
-                        if isinstance(river_raw, dict) and "all" in river_raw:
-                            turn_card = river_raw.get("turn_card", "")
-                            river_items = river_raw.get("all", [])
-                        elif isinstance(river_raw, (list, tuple)):
-                            river_items = []
-                            turn_card = ""
-                            for el in river_raw:
-                                if isinstance(el, dict) and "all" in el:
-                                    turn_card = el.get("turn_card", "")
-                                    river_items.extend(el["all"])
+                        river_data = rlist[i]
+                        # river_data はリスト or 辞書どちらでも展開
+                        river_items = []
+                        if isinstance(river_data, list):
+                            for el in river_data:
+                                if isinstance(el, dict):
+                                    river_items.append(el)
                                 elif isinstance(el, list):
                                     river_items.extend(el)
-                        elif isinstance(river_raw, str):
+                        elif isinstance(river_data, dict):
+                            river_items.append(river_data)
+                        elif isinstance(river_data, str):
                             try:
-                                parsed = ast.literal_eval(river_raw)
-                                if isinstance(parsed, dict) and "all" in parsed:
-                                    turn_card = parsed.get("turn_card", "")
-                                    river_items = parsed.get("all", [])
+                                parsed = ast.literal_eval(river_data)
+                                if isinstance(parsed, dict):
+                                    river_items.append(parsed)
                                 elif isinstance(parsed, list):
-                                    turn_card = ""
-                                    river_items = parsed
-                                else:
-                                    turn_card, river_items = "", []
+                                    river_items.extend(parsed)
                             except Exception:
-                                turn_card, river_items = "", []
-                        else:
-                            turn_card, river_items = "", []
+                                pass
 
                         seen_river = set()
                         for item in river_items:
-                            if isinstance(item, str):
-                                try:
-                                    item = ast.literal_eval(item)
-                                except Exception:
-                                    continue
                             if not isinstance(item, dict):
                                 continue
                             rc = item.get("river_card", None)
@@ -442,7 +442,7 @@ if "auto_flop" in st.session_state:
                             csv_rows.append({
                                 "Stage": "ShiftRiver",
                                 "Flop": flop_str,
-                                "Turn": turn_card or "―",
+                                "Turn": item.get("turn_card", "―"),
                                 "Detail": rc or "―",
                                 "Shift": shift,
                                 "Winrate": wr if wr is not None else "―",
@@ -450,7 +450,6 @@ if "auto_flop" in st.session_state:
                                 "Role": made,
                                 "Hand": hand_str
                             })
-
         # --- 保存処理 ---
         df = pd.DataFrame(csv_rows)
         st.session_state["csv_data"] = df.to_csv(index=False)
