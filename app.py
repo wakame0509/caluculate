@@ -112,49 +112,59 @@ elif mode == "自動生成モード":
                     flop_cards = [eval7.Card(c) for c in flop_cards_str]
                     flop_wr, shift_feats = run_shift_flop(hand, flop_cards, trials)
 
-                    # --- ターン・リバー処理 ---
+                                        # --- ターン・リバー処理 ---
                     turn_all_items, turn_top10, turn_bottom10 = run_shift_turn(
                         hand, flop_cards, flop_wr, trials
                     )
 
+                    # ターンカードを抽出
                     if isinstance(turn_all_items, list) and len(turn_all_items) > 0:
-                        all_turn_cards = [t["turn_card"] for t in turn_all_items]
+                        all_turn_cards = [t["turn_card"] for t in turn_all_items if "turn_card" in t]
                     else:
                         all_turn_cards = []
 
+                    # 指定枚数だけサンプリング（存在するターン枚数が少なければ全て使用）
                     if len(all_turn_cards) > 0:
-                        sampled_turn_cards = random.sample(all_turn_cards, min(turn_count, len(all_turn_cards)))
+                        sampled_turn_cards = random.sample(
+                            all_turn_cards, 
+                            min(turn_count, len(all_turn_cards))
+                        )
                     else:
                         sampled_turn_cards = []
 
                     river_items_total = []
+
+                    # 各選択ターンカードに対してリバー全探索
                     for t_card in sampled_turn_cards:
                         turn_wr = next(
-                            (t["winrate"] for t in turn_all_items if t["turn_card"] == t_card),
+                            (t["winrate"] for t in turn_all_items if t.get("turn_card") == t_card),
                             flop_wr
                         )
 
+                        # 修正版：選択したターン枚数に応じて全探索を実行
                         river_items, _, _ = simulate_shift_river_multiple_turns(
                             hand,
                             flop_cards + [eval7.Card(t_card)],
                             turn_wr,
-                            turn_count=1,
+                            turn_count=turn_count,  # ← UIで選んだターン枚数を反映
                             trials_per_river=trials
                         )
 
                         river_items_total.extend(river_items)
 
+                    # 各ステージ結果を格納
                     turn_results.append(turn_all_items)
                     river_results.append(river_items_total)
                     flop_results.append((flop_cards_str, flop_wr, shift_feats))
 
+                # --- 各ハンド処理終了後 ---
                 flop_status.text(f"✅ ハンド {hand} のフロップ計算完了")
                 flop_progress.progress(1.0)
 
                 batch_flop[hand] = flop_results
                 batch_turn[hand] = turn_results
                 batch_river[hand] = river_results
-
+                    
         st.session_state["auto_flop"] = batch_flop
         st.session_state["auto_turn"] = batch_turn
         st.session_state["auto_river"] = batch_river
