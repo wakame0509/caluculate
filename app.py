@@ -27,7 +27,7 @@ mode = st.radio("モードを選択", ["プリフロップ勝率", "自動生成
 if mode == "プリフロップ勝率":
     st.header("プリフロップ勝率生成（ランダムハンド vs ランダムハンド）")
 
-    trials_pf = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
+    trials_pf = st.selectbox("試行回数", [1000, 2000, 3000, 5000, 10000, 50000, 100000])
 
     if st.button("プリフロップ勝率を生成して保存"):
         deck_full = [r + s for r in '23456789TJQKA' for s in 'shdc']
