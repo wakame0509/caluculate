@@ -102,6 +102,11 @@ elif mode == "自動生成モード":
 
     # === 実行ボタン ===
     if st.button("ShiftFlop → ShiftTurn → ShiftRiver を一括実行"):
+        # --- 念のため再初期化 ---
+        for key in ["auto_flop", "auto_turn", "auto_river"]:
+            if key not in st.session_state:
+                st.session_state[key] = {}
+
         deck_full = [r + s for r in '23456789TJQKA' for s in 'hdcs']
         batch_flop, batch_turn, batch_river = {}, {}, {}
 
