@@ -96,7 +96,7 @@ elif mode == "自動生成モード":
 
     # === 自動生成設定 ===
     st.subheader("自動生成パラメータ設定")
-    trials = st.selectbox("試行回数", [1000, 10000, 50000, 100000])
+    trials = st.selectbox("試行回数", [1000, 2000, 3000, 5000, 10000, 50000, 100000])
     flop_count = st.selectbox("フロップ枚数", [5, 10, 20, 30])
     turn_count = st.selectbox("ターンカード枚数", [5, 10, 20, 30])
 
