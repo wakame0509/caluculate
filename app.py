@@ -540,23 +540,6 @@ def get_bucket(value, is_made):
             upper = lower + 10
             return f"{lower}%以上〜{upper}%未満"
 
-# === 169ハンド集合（AA, AKo, AKs 形式） ===
-def all_starting_hands_169():
-    ranks = "AKQJT98765432"
-    hands = set()
-    for i, r1 in enumerate(ranks):
-        for j, r2 in enumerate(ranks):
-            if i == j:
-                hands.add(r1 + r2)          # ペア
-            elif i < j:
-                # 上位文字を先に：例 AKs, AKo
-                hands.add(r1 + r2 + "s")
-                hands.add(r1 + r2 + "o")
-            # i > j は既に追加済み
-    return hands
-
-EXPECTED_169 = all_starting_hands_169()
-
 # === 特徴量の統計処理（hc0, hc1を別役として扱う） ===
 def analyze_features(df_all):
     records_made = []
@@ -571,6 +554,7 @@ def analyze_features(df_all):
             if not feat.startswith("newmade_") or feat in excluded_features:
                 continue
 
+            # hcを含むfeatをそのまま使い、made判定はhc除外で行う
             base_match = re.match(r"(newmade_[a-z_]+)", feat)
             feat_base = base_match.group(1) if base_match else feat
             is_made = feat_base in made_roles
@@ -591,6 +575,7 @@ def analyze_features(df_all):
     df_made = pd.DataFrame(records_made)
     df_notmade = pd.DataFrame(records_notmade)
 
+    # === 集計・統計（hc付きfeatureごと） ===
     summary_made = (
         df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
         if not df_made.empty else pd.DataFrame()
@@ -618,6 +603,22 @@ def analyze_features(df_all):
 
     return summary_made, summary_notmade
 
+# === ここから追加：169ハンド集合 ================================
+def all_starting_hands_169():
+    ranks = "AKQJT98765432"
+    hands = set()
+    for i, r1 in enumerate(ranks):
+        for j, r2 in enumerate(ranks):
+            if i == j:
+                hands.add(r1 + r2)          # ペア
+            elif i < j:
+                hands.add(r1 + r2 + "s")    # スーテッド
+                hands.add(r1 + r2 + "o")    # オフスート
+    return hands
+
+EXPECTED_169 = all_starting_hands_169()
+# ================================================================
+
 # === Streamlit UI ===
 st.title("特徴量別 勝率シフト度数分布＋統計（役あり／役なし分離・hc別集計対応）")
 
@@ -627,15 +628,12 @@ if uploaded_files:
     df_all = pd.concat([pd.read_csv(file) for file in uploaded_files], ignore_index=True)
     st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
 
-    # === 169ハンド存在 & 重複チェック（追加）========================
-    # Hand列の推定
+    # === ここから追加：169ハンド網羅 & 重複チェック =================
     possible_cols = [c for c in ["Hand", "hand", "ハンド"] if c in df_all.columns]
-    if not possible_cols:
-        st.warning("⚠️ Hand列（Hand/hand/ハンド）が見つかりませんでした。ハンドの存在・重複チェックをスキップします。")
-    else:
+    if possible_cols:
         hand_col = possible_cols[0]
 
-        # HandInfo基準があればそれを使う（重複検出が正確）
+        # Stage==HandInfo があればそれを基準に（より厳密）
         if "Stage" in df_all.columns:
             hand_rows = df_all[df_all["Stage"] == "HandInfo"]
             basis_note = "Stage=='HandInfo' 行を基準に判定"
@@ -643,22 +641,21 @@ if uploaded_files:
             hand_rows = df_all
             basis_note = "Hand列全体を基準に判定（参考）"
 
-        counts = hand_rows[hand_col].value_counts(dropna=False)
-        present_set = set(counts.index.astype(str))
+        counts = hand_rows[hand_col].astype(str).value_counts(dropna=False)
+        present_set = set(counts.index)
 
         missing = sorted(EXPECTED_169 - present_set)
-        unexpected = sorted(present_set - EXPECTED_169)  # 想定外の表記
         duplicates = sorted([h for h, n in counts.items() if n > 1])
+        unexpected = sorted(present_set - EXPECTED_169)
 
         st.subheader("🃏 169ハンド網羅性・重複チェック")
         st.caption(f"基準: {basis_note}")
-
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
+        c1, c2, c3 = st.columns(3)
+        with c1:
             st.metric("検出ハンド数", len(present_set))
-        with col_b:
+        with c2:
             st.metric("欠落ハンド数", len(missing))
-        with col_c:
+        with c3:
             st.metric("重複ハンド数", len(duplicates))
 
         if missing:
@@ -673,7 +670,9 @@ if uploaded_files:
 
         if unexpected:
             st.warning(f"想定外の表記（{len(unexpected)}）: {', '.join(unexpected)}")
-        # ============================================================
+    else:
+        st.warning("⚠️ Hand列（Hand/hand/ハンド）が見つかりませんでした。ハンドの存在・重複チェックをスキップします。")
+    # ===============================================================
 
     summary_made, summary_notmade = analyze_features(df_all)
 
