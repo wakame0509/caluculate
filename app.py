@@ -540,68 +540,72 @@ def get_bucket(value, is_made):
             upper = lower + 10
             return f"{lower}%以上〜{upper}%未満"
 
-# === 特徴量の統計処理（hc0, hc1を別役として扱う） ===
+# === 役と特徴を分離して集計（役はhc区別を保持／特徴はhcなし） ===
 def analyze_features(df_all):
-    records_made = []
-    records_notmade = []
+    records_role = []     # 役（made）… newmade_pair_hc0 と hc1 を別カテゴリとしてそのまま集計
+    records_feat = []     # 特徴（not made）… hcは存在しない想定、文字列そのまま集計
 
     for _, row in df_all.iterrows():
         shift = row["Shift"]
         winrate = row["Winrate"]
         features = str(row["Features"]).split(", ")
 
-        for feat in features:
-            if not feat.startswith("newmade_") or feat in excluded_features:
+        for tag in features:
+            if not tag.startswith("newmade_") or tag in excluded_features:
                 continue
 
-            # hcを含むfeatをそのまま使い、made判定はhc除外で行う
-            base_match = re.match(r"(newmade_[a-z_]+)", feat)
-            feat_base = base_match.group(1) if base_match else feat
-            is_made = feat_base in made_roles
+            # base を hc除去で判定、ただし集計キーは以下ポリシー
+            # - 役: hc付きの元ラベル(tag)をそのまま使う（hc0/hc1を別集計）
+            # - 特徴: hcは付かない想定なので tag をそのまま使う
+            base = re.sub(r"_hc\d+$", "", tag)  # 判定用だけhcを削除
 
-            bucket = get_bucket(shift, is_made)
-            record = {
-                "feature": feat,   # hc付きで集計
-                "shift": shift,
-                "winrate": winrate,
-                "bucket": bucket
-            }
-
-            if is_made:
-                records_made.append(record)
+            if base in made_roles:
+                bucket = get_bucket(shift, is_made=True)
+                records_role.append({
+                    "key": tag,   # ← 役は hc を保持したまま集計キーにする
+                    "shift": shift,
+                    "winrate": winrate,
+                    "bucket": bucket
+                })
             else:
-                records_notmade.append(record)
+                bucket = get_bucket(shift, is_made=False)
+                records_feat.append({
+                    "key": tag,   # ← 特徴はhcなし想定。来てもそのまま文字列で集計（実質hcは出現しない）
+                    "shift": shift,
+                    "winrate": winrate,
+                    "bucket": bucket
+                })
 
-    df_made = pd.DataFrame(records_made)
-    df_notmade = pd.DataFrame(records_notmade)
+    df_role = pd.DataFrame(records_role)
+    df_feat = pd.DataFrame(records_feat)
 
-    # === 集計・統計（hc付きfeatureごと） ===
-    summary_made = (
-        df_made.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        if not df_made.empty else pd.DataFrame()
+    # --- 役（made, hc区別あり）の度数分布 ---
+    summary_roles = (
+        df_role.groupby(["key", "bucket"]).size().unstack(fill_value=0)
+        if not df_role.empty else pd.DataFrame()
     )
-    summary_notmade = (
-        df_notmade.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        if not df_notmade.empty else pd.DataFrame()
+    if not df_role.empty:
+        summary_roles["平均Shift"]   = df_role.groupby("key")["shift"].mean().round(2)
+        summary_roles["標準偏差"]     = df_role.groupby("key")["shift"].std().round(2)
+        summary_roles["平均Winrate"] = df_role.groupby("key")["winrate"].mean().round(2)
+        cols = [c for c in BUCKETS_MADE if c in summary_roles.columns]
+        summary_roles = summary_roles.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
+        summary_roles = summary_roles.sort_values("平均Shift", ascending=False)
+
+    # --- 特徴（not made, hcなし）の度数分布 ---
+    summary_features = (
+        df_feat.groupby(["key", "bucket"]).size().unstack(fill_value=0)
+        if not df_feat.empty else pd.DataFrame()
     )
+    if not df_feat.empty:
+        summary_features["平均Shift"]   = df_feat.groupby("key")["shift"].mean().round(2)
+        summary_features["標準偏差"]     = df_feat.groupby("key")["shift"].std().round(2)
+        summary_features["平均Winrate"] = df_feat.groupby("key")["winrate"].mean().round(2)
+        cols = [c for c in BUCKETS_NOTMADE if c in summary_features.columns]
+        summary_features = summary_features.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
+        summary_features = summary_features.sort_values("平均Shift", ascending=False)
 
-    if not df_made.empty:
-        summary_made["平均Shift"] = df_made.groupby("feature")["shift"].mean().round(2)
-        summary_made["標準偏差"] = df_made.groupby("feature")["shift"].std().round(2)
-        summary_made["平均Winrate"] = df_made.groupby("feature")["winrate"].mean().round(2)
-        cols = [col for col in BUCKETS_MADE if col in summary_made.columns]
-        summary_made = summary_made.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
-        summary_made = summary_made.sort_values("平均Shift", ascending=False)
-
-    if not df_notmade.empty:
-        summary_notmade["平均Shift"] = df_notmade.groupby("feature")["shift"].mean().round(2)
-        summary_notmade["標準偏差"] = df_notmade.groupby("feature")["shift"].std().round(2)
-        summary_notmade["平均Winrate"] = df_notmade.groupby("feature")["winrate"].mean().round(2)
-        cols = [col for col in BUCKETS_NOTMADE if col in summary_notmade.columns]
-        summary_notmade = summary_notmade.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
-        summary_notmade = summary_notmade.sort_values("平均Shift", ascending=False)
-
-    return summary_made, summary_notmade
+    return summary_roles, summary_features
 
 # === ここから追加：169ハンド集合 ================================
 def all_starting_hands_169():
@@ -628,12 +632,10 @@ if uploaded_files:
     df_all = pd.concat([pd.read_csv(file) for file in uploaded_files], ignore_index=True)
     st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
 
-    # === ここから追加：169ハンド網羅 & 重複チェック =================
+    # === 169ハンド網羅 & 重複チェック ===
     possible_cols = [c for c in ["Hand", "hand", "ハンド"] if c in df_all.columns]
     if possible_cols:
         hand_col = possible_cols[0]
-
-        # Stage==HandInfo があればそれを基準に（より厳密）
         if "Stage" in df_all.columns:
             hand_rows = df_all[df_all["Stage"] == "HandInfo"]
             basis_note = "Stage=='HandInfo' 行を基準に判定"
@@ -643,20 +645,16 @@ if uploaded_files:
 
         counts = hand_rows[hand_col].astype(str).value_counts(dropna=False)
         present_set = set(counts.index)
-
-        missing = sorted(EXPECTED_169 - present_set)
+        missing    = sorted(EXPECTED_169 - present_set)
         duplicates = sorted([h for h, n in counts.items() if n > 1])
         unexpected = sorted(present_set - EXPECTED_169)
 
         st.subheader("🃏 169ハンド網羅性・重複チェック")
         st.caption(f"基準: {basis_note}")
         c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("検出ハンド数", len(present_set))
-        with c2:
-            st.metric("欠落ハンド数", len(missing))
-        with c3:
-            st.metric("重複ハンド数", len(duplicates))
+        with c1: st.metric("検出ハンド数", len(present_set))
+        with c2: st.metric("欠落ハンド数", len(missing))
+        with c3: st.metric("重複ハンド数", len(duplicates))
 
         if missing:
             st.error(f"欠落ハンド（{len(missing)}）: {', '.join(missing)}")
@@ -672,18 +670,18 @@ if uploaded_files:
             st.warning(f"想定外の表記（{len(unexpected)}）: {', '.join(unexpected)}")
     else:
         st.warning("⚠️ Hand列（Hand/hand/ハンド）が見つかりませんでした。ハンドの存在・重複チェックをスキップします。")
-    # ===============================================================
 
-    summary_made, summary_notmade = analyze_features(df_all)
+    # === 集計（役と特徴を分離。役はhc区別を保持） ===
+    summary_roles, summary_features = analyze_features(df_all)
 
-    if not summary_made.empty:
-        st.subheader("🟩 役が完成した特徴量（made, hc区別あり）")
-        st.dataframe(summary_made)
-        csv_made = summary_made.to_csv(index=True, encoding="utf-8-sig")
-        st.download_button("📥 made特徴量をCSV保存", data=csv_made, file_name="summary_made.csv", mime="text/csv")
+    if not summary_roles.empty:
+        st.subheader("🟩 役（made, hc区別あり）")
+        st.dataframe(summary_roles)
+        csv_roles = summary_roles.to_csv(index=True, encoding="utf-8-sig")
+        st.download_button("📥 役集計をCSV保存", data=csv_roles, file_name="summary_roles.csv", mime="text/csv")
 
-    if not summary_notmade.empty:
-        st.subheader("🟦 役が未完成の特徴量（not made, hc区別あり）")
-        st.dataframe(summary_notmade)
-        csv_notmade = summary_notmade.to_csv(index=True, encoding="utf-8-sig")
-        st.download_button("📥 not made特徴量をCSV保存", data=csv_notmade, file_name="summary_notmade.csv", mime="text/csv")
+    if not summary_features.empty:
+        st.subheader("🟦 特徴（not made, hcなし）")
+        st.dataframe(summary_features)
+        csv_feats = summary_features.to_csv(index=True, encoding="utf-8-sig")
+        st.download_button("📥 特徴集計をCSV保存", data=csv_feats, file_name="summary_features.csv", mime="text/csv")
