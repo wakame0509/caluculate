@@ -18,7 +18,7 @@ def convert_rank_to_value(rank):
     return rank_map[str(rank)]
 
 def ensure_card(c):
-    """文字列でもCardでも安全に eval7.Card を返す"""
+    """文字列でも Card でも eval7.Card を返す"""
     if isinstance(c, eval7.Card):
         return c
     return eval7.Card(str(c))
@@ -37,10 +37,11 @@ def generate_rivers(board4, hole_cards):
 
 
 # =============================
-# 役判定（あなたのそのまま）
+# ベスト5 → 役判定（厳密）
 # =============================
 
 def best5_from_seven(cards7):
+    """6～7枚から eval7 の最高点 5 枚を返す"""
     best = None
     best_score = -1
     for comb in itertools.combinations(cards7, 5):
@@ -59,13 +60,15 @@ def _values(cards, unique=False):
     return vals
 
 def _is_straight_from_values(uniq_vals):
+    # 5 連番 or A-5 wheel
     for i in range(len(uniq_vals) - 4):
         w = uniq_vals[i:i+5]
         if w[0] - w[4] == 4 and len(set(w)) == 5:
             return True
-    return {14,5,4,3,2}.issubset(set(uniq_vals))
+    return {14, 5, 4, 3, 2}.issubset(set(uniq_vals))
 
 def classify5(cards5):
+    """5 枚固定から役名を返す"""
     ranks = [c.rank for c in cards5]
     suits = [c.suit for c in cards5]
     rc = Counter(ranks)
@@ -75,15 +78,16 @@ def classify5(cards5):
     is_flush = any(v >= 5 for v in sc.values())
     is_straight = _is_straight_from_values(uniq_vals)
 
+    # ストレートフラッシュ判定
     if is_flush:
-        for s in sc:
-            if sc[s] >= 5:
+        for s, cnt in sc.items():
+            if cnt >= 5:
                 suited = [c for c in cards5 if c.suit == s]
                 su = _values(suited, unique=True)
                 if _is_straight_from_values(su):
                     return "straight_flush"
 
-    counts = sorted(rc.values(), reverse=True)
+    counts = sorted(rc.values(), reverse=True)  # 例: [3,1,1] / [2,2,1] など
     if counts[0] == 4:
         return "quads"
     if counts[0] == 3 and counts[1] == 2:
@@ -101,18 +105,23 @@ def classify5(cards5):
     return "high_card"
 
 def detect_made_hand(hole_cards, board_cards):
+    """(6 or 7) 枚 → ベスト5 → 厳密分類"""
     seven = hole_cards + board_cards
     best5 = best5_from_seven(seven)
     return [classify5(best5)]
 
-def count_holecards_in_made_hand(hole, board, hand_name):
-    seven = hole + board
-    best5 = set(best5_from_seven(seven))
-    return min(sum(1 for c in hole if c in best5), 2)
+def count_holecards_in_made_hand(hole_cards, board_cards, hand_name):
+    """
+    完成役にホールカードが何枚“ベスト5内で”関与しているか
+    ※ 役名で分岐せず、ベスト5に入っているHC枚数を採用（最大2）
+    """
+    seven = hole_cards + board_cards
+    best5_set = set(best5_from_seven(seven))
+    return min(sum(1 for c in hole_cards if c in best5_set), 2)
 
 
 # =============================
-# Overcard
+# Overcard（ペアのみ対象）
 # =============================
 def is_overcard_river(hole_cards, river):
     if hole_cards[0].rank != hole_cards[1].rank:
@@ -122,7 +131,7 @@ def is_overcard_river(hole_cards, river):
 
 
 # =============================
-# 全列挙
+# 勝率（相手ハンド全列挙）
 # =============================
 def enumerate_vs_all(my_hand, board):
     used = {str(c) for c in my_hand + board}
@@ -142,11 +151,12 @@ def enumerate_vs_all(my_hand, board):
 
 
 # =============================
-# ✅ Main Shift River（修正済）
+# Main（フロップ3枚 or フロップ＋固定ターン4枚 両対応）
 # =============================
 def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_winrate,
                                         turn_count=1, trials_per_river=1000):
 
+    # 基準は「ターン勝率」
     try:
         static_turn_winrate = float(static_turn_winrate)
     except:
@@ -154,15 +164,24 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
 
     hole = hand_str_to_cards(hand_str)
 
-    # ✅ Card / str 混在を完全吸収
-    flop = [ensure_card(c) for c in flop_cards_str]
-
-    turns = generate_turns(flop, hole, n_turns=turn_count)
+    # フロップ／固定ターン取り扱い
+    flop_like = [ensure_card(c) for c in flop_cards_str]
+    if len(flop_like) == 4:
+        flop = flop_like[:3]
+        fixed_turn = flop_like[3]
+        turns = [fixed_turn]  # ターン固定
+    elif len(flop_like) == 3:
+        flop = flop_like
+        turns = generate_turns(flop, hole, n_turns=turn_count)
+    else:
+        raise ValueError("flop_cards_str は 3 枚（フロップ）または 4 枚（フロップ＋固定ターン）にしてください。")
 
     all_rows = []
 
     for turn in turns:
         board4 = flop + [turn]
+
+        # （重要）ターン時点の役名（後で newmade_* 判定に使用）
         before = detect_made_hand(hole, board4)
         feats_before = classify_flop_turn_pattern(flop, turn)
 
@@ -178,13 +197,14 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
             hc = count_holecards_in_made_hand(hole, full_board, after[0])
 
             features = []
+            # 役の進化（high_card 以外）
             if after[0] != before[0] and after[0] != "high_card":
                 features.append(f"newmade_{after[0]}_hc{hc}")
             else:
+                # ボード要因（あなたの関数に準拠：ボードのみ）
                 feats_after = classify_flop_turn_pattern(flop, turn, river)
                 new_feats = [f for f in feats_after if f not in feats_before]
                 features.extend([f"newmade_{f}" for f in new_feats])
-
                 if is_overcard_river(hole, river):
                     features.append("newmade_overcard")
 
@@ -207,7 +227,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
 
 
 def run_shift_river(hand_str, flop_cards_str, static_turn_winrate,
-                    turn_count=1, trials_per_river=100):
+                    turn_count=1, trials_per_river=1000):
     return simulate_shift_river_multiple_turns(
         hand_str, flop_cards_str, static_turn_winrate,
         turn_count, trials_per_river
