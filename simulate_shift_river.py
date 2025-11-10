@@ -1,3 +1,5 @@
+# simulate_shift_river.py
+
 import eval7
 import random
 import pandas as pd
@@ -60,7 +62,7 @@ def _values(cards, unique=False):
     return vals
 
 def _is_straight_from_values(uniq_vals):
-    # 5 連番 or A-5 wheel
+    # 5連番 or A-5 wheel
     for i in range(len(uniq_vals) - 4):
         w = uniq_vals[i:i+5]
         if w[0] - w[4] == 4 and len(set(w)) == 5:
@@ -164,15 +166,15 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
 
     hole = hand_str_to_cards(hand_str)
 
-    # フロップ／固定ターン取り扱い
+    # フロップ／固定ターン取り扱い（str / Card 混在を吸収）
     flop_like = [ensure_card(c) for c in flop_cards_str]
     if len(flop_like) == 4:
         flop = flop_like[:3]
         fixed_turn = flop_like[3]
-        turns = [fixed_turn]  # ターン固定
+        turns = [fixed_turn]  # ← 上流の“選択ターン”を厳密に反映
     elif len(flop_like) == 3:
         flop = flop_like
-        turns = generate_turns(flop, hole, n_turns=turn_count)
+        turns = generate_turns(flop, hole, n_turns=turn_count)  # ← 自動生成時は turn_count を使用
     else:
         raise ValueError("flop_cards_str は 3 枚（フロップ）または 4 枚（フロップ＋固定ターン）にしてください。")
 
@@ -181,7 +183,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
     for turn in turns:
         board4 = flop + [turn]
 
-        # （重要）ターン時点の役名（後で newmade_* 判定に使用）
+        # ターン時点の役名とボード特徴（newmade_* 比較に使用）
         before = detect_made_hand(hole, board4)
         feats_before = classify_flop_turn_pattern(flop, turn)
 
@@ -190,7 +192,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
         for river in rivers:
             full_board = board4 + [river]
 
-            wr = enumerate_vs_all(hole, full_board)
+            wr = enumerate_vs_all(hole, full_board)  # 全列挙
             shift = round(wr - static_turn_winrate, 2)
 
             after = detect_made_hand(hole, full_board)
@@ -201,7 +203,7 @@ def simulate_shift_river_multiple_turns(hand_str, flop_cards_str, static_turn_wi
             if after[0] != before[0] and after[0] != "high_card":
                 features.append(f"newmade_{after[0]}_hc{hc}")
             else:
-                # ボード要因（あなたの関数に準拠：ボードのみ）
+                # ボード要因（board_patterns.py の仕様に準拠：ボードのみ）
                 feats_after = classify_flop_turn_pattern(flop, turn, river)
                 new_feats = [f for f in feats_after if f not in feats_before]
                 features.extend([f"newmade_{f}" for f in new_feats])
