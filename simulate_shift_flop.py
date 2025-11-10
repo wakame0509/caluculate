@@ -1,10 +1,10 @@
 import random
 import eval7
-import itertools
-from collections import Counter
 from preflop_winrates_random import get_static_preflop_winrate
 from board_patterns import classify_flop_turn_pattern
 from flop_generator import generate_flops_by_type
+import itertools
+from collections import Counter
 
 def convert_rank_to_value(rank):
     rank_map = {
@@ -43,12 +43,10 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
             ties += 1
     return (wins + ties / 2) / iterations * 100
 
-# ============================================================
-# ★ 厳密な役判定（ベスト5枚方式）＋ hc カウント
-# ============================================================
+# ========= 厳密な役判定（ベスト5ベース）＋短枚数対応 =========
 
 def best5_from_seven(cards7):
-    """7枚から eval7 スコア最大の5枚を返す"""
+    """len(cards7) >= 5 を前提にベスト5を返す"""
     best = None
     best_score = -1
     for comb in itertools.combinations(cards7, 5):
@@ -58,12 +56,9 @@ def best5_from_seven(cards7):
             best = list(comb)
     return best
 
-def _values(card_list, unique=False, sort_desc=True):
+def _values(card_list, unique=False, desc=True):
     vals = [convert_rank_to_value(c.rank) for c in card_list]
-    if unique:
-        vals = sorted(set(vals), reverse=sort_desc)
-    else:
-        vals = sorted(vals, reverse=sort_desc)
+    vals = sorted(set(vals) if unique else vals, reverse=desc)
     return vals
 
 def _is_straight_from_values(values_unique_desc):
@@ -72,9 +67,9 @@ def _is_straight_from_values(values_unique_desc):
         window = values_unique_desc[i:i+5]
         if window[0] - window[4] == 4 and len(set(window)) == 5:
             return True
-    # A-5 (wheel)
+    # A-5 ホイール
     s = set(values_unique_desc)
-    return {14,5,4,3,2}.issubset(s)
+    return {14, 5, 4, 3, 2}.issubset(s)
 
 def classify5(cards5):
     """5枚固定から役名を返す"""
@@ -83,10 +78,10 @@ def classify5(cards5):
     rc = Counter(ranks)
     sc = Counter(suits)
 
-    is_flush = any(cnt >= 5 for cnt in sc.values())  # 5枚なので==5と同義
+    is_flush = any(cnt >= 5 for cnt in sc.values())
     uvals = _values(cards5, unique=True)
 
-    # ストレートフラッシュ
+    # ストフラ
     if is_flush:
         flush_suit = max(sc, key=lambda k: sc[k])
         suited = [c for c in cards5 if c.suit == flush_suit]
@@ -113,24 +108,47 @@ def classify5(cards5):
 
 def detect_made_hand(hole_cards, board_cards):
     """
-    ベスト5枚で厳密に役を判定し、そのベスト5内に何枚ホールが入っているかで hc を数える。
-    戻り値は (hand_name, hole_contrib) で、既存の呼び出しに互換。
+    役名とホールカード貢献枚数(hc)を返す。
+    - 5枚未満のときは安全に簡易判定（プリフロップ: ポケペア=pair / それ以外=high_card）
+    - 5枚以上のときは ベスト5→classify5 で厳密判定
     """
     seven = hole_cards + board_cards
+
+    # --- 5枚未満（プリフロップやターン前など） ---
+    if len(seven) < 5:
+        # プリフロップ想定：ポケットペアのみ pair とする
+        if len(hole_cards) == 2 and hole_cards[0].rank == hole_cards[1].rank:
+            return "pair", 2  # 両方関与
+        else:
+            return "high_card", 0
+
+    # --- 厳密（5枚以上） ---
     best5 = best5_from_seven(seven)
     hand_name = classify5(best5)
 
-    # hc 枚数（ベスト5内に含まれるホールカード枚数）
+    # ベスト5に入っているホールカード枚数 = 基本のhc
     best5_set = set(best5)
-    hole_contrib = sum(1 for c in hole_cards if c in best5_set)
-    hole_contrib = min(hole_contrib, 2)
+    hc_in_best5 = sum(1 for c in hole_cards if c in best5_set)
+
+    if hand_name in ["straight", "straight_flush", "flush"]:
+        hole_contrib = min(hc_in_best5, 2)
+    elif hand_name in ["pair", "two_pair", "set", "full_house", "quads"]:
+        # ランク一致で“役に絡んでいる”ホールカードを数える（ベスト5内）
+        ranks_best5 = [c.rank for c in best5]
+        rc = Counter(ranks_best5)
+        contrib = 0
+        for hc in hole_cards:
+            if hc in best5_set and rc[hc.rank] >= 2:
+                contrib += 1
+        hole_contrib = min(contrib, 2)
+    else:
+        hole_contrib = 0
+
     return hand_name, hole_contrib
 
 # ============================================================
-# シフトフロップ本体（インターフェイスは現状維持）
-# ============================================================
 
-def is_straight(values):  # 互換用（外部で使っていないが念のため残す）
+def is_straight(values):
     unique = sorted(set(values), reverse=True)
     for i in range(len(unique) - 4):
         if unique[i] - unique[i + 4] == 4:
