@@ -450,37 +450,7 @@ elif mode == "手動選択モード":
         st.session_state["csv_data"] = df.to_csv(index=False)
         st.success("CSVをセッションに保存しました")
 
-        st.download_button(
-            label="📥 CSVをダウンロード",
-            data=st.session_state["csv_data"],
-            file_name="shift_results.csv",
-            mime="text/csv"
-        )
-
-            # ダウンロードボタン（任意。別カラムでもOK）
-            st.download_button(
-                label="📥 CSVをダウンロード",
-                data=st.session_state["csv_data"],
-                file_name="shift_results.csv",
-                mime="text/csv"
-            )
-
-            # ダウンロードボタン（任意。別カラムでもOK）
-            st.download_button(
-                label="📥 CSVをダウンロード",
-                data=st.session_state["csv_data"],
-                file_name="shift_results.csv",
-                mime="text/csv"
-            )
-        
-
-            # ダウンロードボタン（任意。別カラムでもOK）
-            st.download_button(
-                label="📥 CSVをダウンロード",
-                data=st.session_state["csv_data"],
-                file_name="shift_results.csv",
-                mime="text/csv"
-            )
+            
     # --- ダウンロードボタン ---
     if "csv_data" in st.session_state and st.session_state["csv_data"]:
         st.download_button(
