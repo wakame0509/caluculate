@@ -500,90 +500,83 @@ import re
 import pandas as pd
 import streamlit as st
 
-# 既存の定義はそのまま利用
+# 役名（newmade_前提）
 made_roles = [
     "newmade_set", "newmade_straight", "newmade_flush", "newmade_full_house",
     "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
 ]
+# 除外特徴
 excluded_features = {"newmade_rainbow", "newmade_two_tone", "newmade_monotone"}
 
+# ========= 共通バケット：両方とも -100%〜100% =========
 def make_buckets(start, end, step):
-    buckets = []
-    for v in range(start, end, step):
-        buckets.append(f"{v}%以上〜{v+step}%未満")
-    return buckets
+    return [f"{v}%以上〜{v+step}%未満" for v in range(start, end, step)]
 
-BUCKETS_MADE = make_buckets(0, 100, 10) + ["100%以上"]
-BUCKETS_NOTMADE = make_buckets(-100, 100, 10) + ["100%以上"]
+BUCKETS_BOTH = ["-100%未満"] + make_buckets(-100, 100, 10) + ["100%以上"]
 
-def get_bucket(value, is_made):
-    if is_made:
-        if value < 0:
-            return "0%未満"
-        elif value >= 100:
-            return "100%以上"
-        else:
-            lower = int(value // 10) * 10
-            upper = lower + 10
-            return f"{lower}%以上〜{upper}%未満"
-    else:
-        if value < -100:
-            return "-100%未満"
-        elif value >= 100:
-            return "100%以上"
-        else:
-            lower = int(value // 10) * 10
-            upper = lower + 10
-            return f"{lower}%以上〜{upper}%未満"
+def get_bucket(value: float) -> str:
+    if pd.isna(value):
+        return None
+    if value < -100:
+        return "-100%未満"
+    if value >= 100:
+        return "100%以上"
+    lower = int(value // 10) * 10
+    upper = lower + 10
+    return f"{lower}%以上〜{upper}%未満"
 
-# ========== ここを差し替え ==========
-# 役と特徴を別々に集計。役は hc(0/1/2) を区別、特徴は hc を持たない前提。
-# Featuresの各要素は:
-# - 役: newmade_flush(_hc0|_hc1|_hc2)? など
-# - 特徴: newmade_three_straight / newmade_four_flush / newmade_overcard など（hcなし）
-ROLE_RE = re.compile(r'^(newmade_[a-z_]+?)(?:_hc([012]))?$')  # hcは任意
+# ========= 役(hc別)・特徴(hcなし)を分離して集計 =========
+# 役は newmade_xxx[_hc0|_hc1|_hc2] を許可、特徴は hc を持たない想定
+ROLE_RE = re.compile(r'^(newmade_[a-z_]+?)(?:_hc([0-2]))?$')
+
 def analyze_roles_and_features(df_all: pd.DataFrame):
-    role_rows = []     # {"role_key": "newmade_flush_hc1", "role_base": "newmade_flush", "hc": "1", ...}
-    feat_rows = []     # {"feature": "newmade_three_straight", ...}
+    role_rows = []   # role_key(=base+hc), role_base, hc, bucket, shift, winrate
+    feat_rows = []   # feature(baseのみ), bucket, shift, winrate
+
+    # 列の存在を軽くチェック
+    for col in ("Shift", "Winrate", "Features"):
+        if col not in df_all.columns:
+            # 必須列が足りない場合は空集計を返す
+            return pd.DataFrame(), pd.DataFrame()
 
     for _, row in df_all.iterrows():
-        # 必須列が無い/NaNならスキップ
-        if "Shift" not in row or "Winrate" not in row or "Features" not in row:
-            continue
         shift = row["Shift"]
         winrate = row["Winrate"]
         feats_raw = row["Features"]
 
-        # 数値でない/NaNはスキップ
-        if pd.isna(shift) or pd.isna(winrate):
+        # 数値・NaNチェック
+        try:
+            shift = float(shift)
+            winrate = float(winrate)
+        except (TypeError, ValueError):
+            continue
+        if pd.isna(shift) or pd.isna(winrate) or pd.isna(feats_raw):
             continue
 
-        # Features の安全分割
-        if pd.isna(feats_raw):
-            continue
-        items = [x.strip() for x in str(feats_raw).split(",") if x.strip()]
+        # Features 安全分割：カンマ区切り、空要素除去
+        items = [x.strip() for x in str(feats_raw).split(",") if x and x.strip()]
 
         for item in items:
-            # newmade_ 以外は無視
             if not item.startswith("newmade_"):
                 continue
-            # 除外対象は無視
             if item in excluded_features:
                 continue
 
-            # まず「役」候補として正規表現を当てる（hc あり/なし両対応）
             m = ROLE_RE.match(item)
             if not m:
-                # 想定外フォーマットは無視
+                # 想定外フォーマットは無視（ここで以前はNone.group()で落ちていた）
                 continue
 
-            base = m.group(1)            # newmade_xxx
-            hc = m.group(2)              # '0','1','2' or None
+            base = m.group(1)          # newmade_xxx
+            hc = m.group(2)            # '0'|'1'|'2' or None
+
+            bucket = get_bucket(shift)
+            if bucket is None:
+                continue
 
             if base in made_roles:
-                # 役：hc 区別して集計（hcが無ければ 'none' として扱う）
+                # 役：hc を区別（無い場合は hcnone）
                 role_key = f"{base}_hc{hc}" if hc is not None else f"{base}_hcnone"
-                bucket = get_bucket(shift, is_made=True)
                 role_rows.append({
                     "role_key": role_key,
                     "role_base": base,
@@ -593,11 +586,9 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
                     "winrate": winrate,
                 })
             else:
-                # 特徴：hcは存在しない前提。もし _hcX が紛れていても base のみで集計する
-                feature = base
-                bucket = get_bucket(shift, is_made=False)
+                # 特徴：hcは持たない前提 → base で集計
                 feat_rows.append({
-                    "feature": feature,
+                    "feature": base,
                     "bucket": bucket,
                     "shift": shift,
                     "winrate": winrate,
@@ -606,21 +597,20 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
     df_role = pd.DataFrame(role_rows)
     df_feat = pd.DataFrame(feat_rows)
 
-    # 役の度数分布（role_key × bucket）
+    # 役（hc別）の度数分布
     summary_roles = (
         df_role.groupby(["role_key", "bucket"]).size().unstack(fill_value=0)
         if not df_role.empty else pd.DataFrame()
     )
     if not df_role.empty:
-        # 平均等は role_key 単位（hc別）で算出
         summary_roles["平均Shift"]   = df_role.groupby("role_key")["shift"].mean().round(2)
         summary_roles["標準偏差"]    = df_role.groupby("role_key")["shift"].std().round(2)
         summary_roles["平均Winrate"] = df_role.groupby("role_key")["winrate"].mean().round(2)
-        cols = [c for c in BUCKETS_MADE if c in summary_roles.columns]
+        cols = [c for c in BUCKETS_BOTH if c in summary_roles.columns]
         summary_roles = summary_roles.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_roles = summary_roles.sort_values("平均Shift", ascending=False)
 
-    # 特徴の度数分布（feature × bucket）
+    # 特徴（hcなし）の度数分布
     summary_feats = (
         df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
         if not df_feat.empty else pd.DataFrame()
@@ -629,33 +619,32 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
         summary_feats["平均Shift"]   = df_feat.groupby("feature")["shift"].mean().round(2)
         summary_feats["標準偏差"]    = df_feat.groupby("feature")["shift"].std().round(2)
         summary_feats["平均Winrate"] = df_feat.groupby("feature")["winrate"].mean().round(2)
-        cols = [c for c in BUCKETS_NOTMADE if c in summary_feats.columns]
+        cols = [c for c in BUCKETS_BOTH if c in summary_feats.columns]
         summary_feats = summary_feats.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_feats = summary_feats.sort_values("平均Shift", ascending=False)
 
     return summary_roles, summary_feats
-# ========== 差し替えここまで ==========
 
-# 以降はUI側の呼び出しだけ変更（他の処理はそのまま）
-st.title("特徴量別 勝率シフト度数分布＋統計（役と特徴を分離・役はhc別集計）")
+# ========= UI（見出しのみ微調整、それ以外はそのまま） =========
+st.title("特徴量別 勝率シフト度数分布＋統計（役=hc別／特徴=hcなし、両方-100%〜100%）")
 uploaded_files = st.file_uploader("CSVファイルをアップロード（複数可）", type="csv", accept_multiple_files=True)
 
 if uploaded_files:
     df_all = pd.concat([pd.read_csv(file) for file in uploaded_files], ignore_index=True)
     st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
 
-    # ここで 169 ハンドの有無・重複チェックを入れている場合はそのまま残してOK
+    # ※ 169ハンド網羅＆重複チェックブロックを使っていた場合は、この直下に既存のまま差し戻してOK
 
     summary_roles, summary_feats = analyze_roles_and_features(df_all)
 
     if not summary_roles.empty:
-        st.subheader("🟩 役（hc別）")
+        st.subheader("🟩 役（hc別、-100%〜100%）")
         st.dataframe(summary_roles)
         csv_roles = summary_roles.to_csv(index=True, encoding="utf-8-sig")
         st.download_button("📥 役（hc別）をCSV保存", data=csv_roles, file_name="summary_roles_hc.csv", mime="text/csv")
 
     if not summary_feats.empty:
-        st.subheader("🟦 特徴（hcなし）")
+        st.subheader("🟦 特徴（hcなし、-100%〜100%）")
         st.dataframe(summary_feats)
         csv_feats = summary_feats.to_csv(index=True, encoding="utf-8-sig")
         st.download_button("📥 特徴をCSV保存", data=csv_feats, file_name="summary_features.csv", mime="text/csv")
