@@ -335,33 +335,35 @@ if "auto_flop" in st.session_state:
                     "Hand": hand_str
                 })
 
-                # --- ShiftFlop ---
-                if isinstance(shift_feats, dict) and len(shift_feats) > 0:
-                    for f, delta in shift_feats.items():
-                        csv_rows.append({
-                            "Stage": "ShiftFlop",
-                            "Flop": flop_str,
-                            "Turn": "",
-                            "Detail": f,
-                            "Shift": round(delta, 2),
-                            "Winrate": round(static_wr_pf + delta, 2),
-                            "Features": "",
-                            "Role": "",
-                            "Hand": hand_str
-                        })
-                else:
-                    # 空dictでも1行だけ出力（ShiftFlop結果が失われないように）
-                    csv_rows.append({
-                        "Stage": "ShiftFlop",
-                        "Flop": flop_str,
-                        "Turn": "",
-                        "Detail": "―",
-                        "Shift": "",
-                        "Winrate": static_wr_flop,
-                        "Features": "",
-                        "Role": "",
-                        "Hand": hand_str
-                    })
+                        # --- ShiftFlop ---
+        if isinstance(shift_feats, dict) and shift_feats:
+            for f, delta in sorted(shift_feats.items(), key=lambda x: float(x[1])):
+                d = float(delta)
+                csv_rows.append({
+                    "Stage": "ShiftFlop",
+                    "Flop": flop_str,
+                    "Turn": "",
+                    "Detail": str(f),
+                    "Shift": round(d, 2),
+                    "Winrate": round(float(static_wr_pf) + d, 2),
+                    "Features": "",
+                    "Role": "",
+                    "Hand": hand_str
+                })
+        else:
+            csv_rows.append({
+                "Stage": "ShiftFlop",
+                "Flop": flop_str,
+                "Turn": "",
+                "Detail": "―",
+                "Shift": "",
+                "Winrate": round(float(static_wr_flop), 2),
+                "Features": "",
+                "Role": "",
+                "Hand": hand_str
+            })
+
+
 
                                 # --- ShiftTurn（このフロップ i に対する全ターン） ---
                 turn_wr_dict = {}   # { 'Tc': 96.05, ... }  ← ターン基準作成
