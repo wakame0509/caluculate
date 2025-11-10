@@ -263,34 +263,6 @@ elif mode == "手動選択モード":
     except Exception as e:
         st.error(f"入力エラー: {e}")
 
-# --- 結果表示（ShiftFlopのみ） ---
-if "auto_flop" in st.session_state:
-    st.subheader("自動生成モードの結果表示")
-    for hand_str, flop_list in st.session_state["auto_flop"].items():
-        static_wr_pf = round(get_static_preflop_winrate(hand_str), 2)
-        st.markdown(f"### 💠 ハンド: **{hand_str}**")
-
-        for i, (flop_cards_str, static_wr_flop, shift_feats) in enumerate(flop_list):
-            flop_str = ' '.join(flop_cards_str)
-
-            st.markdown(f"【{i+1}】フロップ: **{flop_str}**")
-            st.markdown(f"- プリフロップ勝率: **{static_wr_pf:.2f}%**")
-            st.markdown(f"- フロップ勝率: **{float(static_wr_flop):.2f}%**")
-
-            st.markdown("**ShiftFlop 特徴（1行＝1特徴）**")
-            if isinstance(shift_feats, dict) and shift_feats:
-                # 表で “特徴 / シフト / その特徴でのフロップ勝率” を同じ行に並べる
-                rows = []
-                for feat, delta in sorted(shift_feats.items(), key=lambda x: x[1], reverse=True):
-                    rows.append({
-                        "Feature (newmade_*)": feat,
-                        "Shift (%)": round(float(delta), 2),
-                        # フロップ勝率は「プリフロップ勝率 + シフト値」を表示（従来どおりの定義）
-                        "Flop Winrate (%)": round(static_wr_pf + float(delta), 2),
-                    })
-                st.table(pd.DataFrame(rows))
-            else:
-                st.caption("（ShiftFlop の newmade 特徴はありません）")
 
     if st.button("CSV保存"):
         import ast
