@@ -533,10 +533,9 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
     role_rows = []   # role_key(=base+hc), role_base, hc, bucket, shift, winrate
     feat_rows = []   # feature(baseのみ), bucket, shift, winrate
 
-    # 列の存在を軽くチェック
+    # 必須列がなければ空で返す
     for col in ("Shift", "Winrate", "Features"):
         if col not in df_all.columns:
-            # 必須列が足りない場合は空集計を返す
             return pd.DataFrame(), pd.DataFrame()
 
     for _, row in df_all.iterrows():
@@ -544,7 +543,7 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
         winrate = row["Winrate"]
         feats_raw = row["Features"]
 
-        # 数値・NaNチェック
+        # 数値キャスト & 欠損スキップ
         try:
             shift = float(shift)
             winrate = float(winrate)
@@ -553,8 +552,11 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
         if pd.isna(shift) or pd.isna(winrate) or pd.isna(feats_raw):
             continue
 
-        # Features 安全分割：カンマ区切り、空要素除去
+        # Features 安全分割
         items = [x.strip() for x in str(feats_raw).split(",") if x and x.strip()]
+        bucket = get_bucket(shift)
+        if bucket is None:
+            continue
 
         for item in items:
             if not item.startswith("newmade_"):
@@ -564,17 +566,18 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
 
             m = ROLE_RE.match(item)
             if not m:
-                # 想定外フォーマットは無視（ここで以前はNone.group()で落ちていた）
+                # 想定外フォーマットは無視（以前の None.group エラーを防止）
                 continue
 
             base = m.group(1)          # newmade_xxx
             hc = m.group(2)            # '0'|'1'|'2' or None
 
-            bucket = get_bucket(shift)
-            if bucket is None:
-                continue
-
             if base in made_roles:
+                # ───────── 重要：newmade_pair_hc2 は理論的に不整合なので除外 ─────────
+                # 「そのストリートで“新しく”ペアができた」のに HC2（両ホールカード関与）は起こり得ない
+                if base == "newmade_pair" and hc == "2":
+                    continue
+
                 # 役：hc を区別（無い場合は hcnone）
                 role_key = f"{base}_hc{hc}" if hc is not None else f"{base}_hcnone"
                 role_rows.append({
@@ -625,7 +628,7 @@ def analyze_roles_and_features(df_all: pd.DataFrame):
 
     return summary_roles, summary_feats
 
-# ========= UI（見出しのみ微調整、それ以外はそのまま） =========
+# ========= UI（見出しのみ微調整。それ以外は変えない） =========
 st.title("特徴量別 勝率シフト度数分布＋統計（役=hc別／特徴=hcなし、両方-100%〜100%）")
 uploaded_files = st.file_uploader("CSVファイルをアップロード（複数可）", type="csv", accept_multiple_files=True)
 
@@ -633,7 +636,7 @@ if uploaded_files:
     df_all = pd.concat([pd.read_csv(file) for file in uploaded_files], ignore_index=True)
     st.success(f"{len(uploaded_files)} ファイルを読み込みました。合計 {len(df_all)} 行のデータがあります。")
 
-    # ※ 169ハンド網羅＆重複チェックブロックを使っていた場合は、この直下に既存のまま差し戻してOK
+    # ※ 169ハンド網羅＆重複チェックを既に入れている場合は、そのブロックはこの直下に据え置きでOK
 
     summary_roles, summary_feats = analyze_roles_and_features(df_all)
 
