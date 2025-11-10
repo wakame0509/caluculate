@@ -1,5 +1,7 @@
 import random
 import eval7
+import itertools
+from collections import Counter
 from preflop_winrates_random import get_static_preflop_winrate
 from board_patterns import classify_flop_turn_pattern
 from flop_generator import generate_flops_by_type
@@ -41,55 +43,94 @@ def simulate_vs_random(my_hand, opp_hand, board, iterations=20):
             ties += 1
     return (wins + ties / 2) / iterations * 100
 
-def detect_made_hand(hole_cards, board_cards):
-    """役の判定とホールカード貢献枚数"""
-    all_cards = hole_cards + board_cards
-    ranks = [c.rank for c in all_cards]
-    suits = [c.suit for c in all_cards]
-    values = sorted([convert_rank_to_value(c.rank) for c in all_cards], reverse=True)
+# ============================================================
+# ★ 厳密な役判定（ベスト5枚方式）＋ hc カウント
+# ============================================================
 
-    rank_counts = {r: ranks.count(r) for r in set(ranks)}
-    suit_counts = {s: suits.count(s) for s in set(suits)}
-    counts = list(rank_counts.values())
+def best5_from_seven(cards7):
+    """7枚から eval7 スコア最大の5枚を返す"""
+    best = None
+    best_score = -1
+    for comb in itertools.combinations(cards7, 5):
+        sc = eval7.evaluate(list(comb))
+        if sc > best_score:
+            best_score = sc
+            best = list(comb)
+    return best
 
-    suit_groups = {}
-    for c in all_cards:
-        value = convert_rank_to_value(c.rank)
-        suit_groups.setdefault(c.suit, []).append(value)
+def _values(card_list, unique=False, sort_desc=True):
+    vals = [convert_rank_to_value(c.rank) for c in card_list]
+    if unique:
+        vals = sorted(set(vals), reverse=sort_desc)
+    else:
+        vals = sorted(vals, reverse=sort_desc)
+    return vals
+
+def _is_straight_from_values(values_unique_desc):
+    # 5連番
+    for i in range(len(values_unique_desc) - 4):
+        window = values_unique_desc[i:i+5]
+        if window[0] - window[4] == 4 and len(set(window)) == 5:
+            return True
+    # A-5 (wheel)
+    s = set(values_unique_desc)
+    return {14,5,4,3,2}.issubset(s)
+
+def classify5(cards5):
+    """5枚固定から役名を返す"""
+    ranks = [c.rank for c in cards5]
+    suits = [c.suit for c in cards5]
+    rc = Counter(ranks)
+    sc = Counter(suits)
+
+    is_flush = any(cnt >= 5 for cnt in sc.values())  # 5枚なので==5と同義
+    uvals = _values(cards5, unique=True)
 
     # ストレートフラッシュ
-    for suited_vals in suit_groups.values():
-        if len(suited_vals) >= 5:
-            suited_vals = sorted(set(suited_vals), reverse=True)
-            for i in range(len(suited_vals) - 4):
-                if suited_vals[i] - suited_vals[i + 4] == 4:
-                    return "straight_flush", count_hole_contrib(hole_cards, all_cards, "straight_flush")
-            if set([14, 2, 3, 4, 5]).issubset(set(suited_vals)):
-                return "straight_flush", count_hole_contrib(hole_cards, all_cards, "straight_flush")
+    if is_flush:
+        flush_suit = max(sc, key=lambda k: sc[k])
+        suited = [c for c in cards5 if c.suit == flush_suit]
+        su = _values(suited, unique=True)
+        if _is_straight_from_values(su):
+            return "straight_flush"
 
-    if 4 in counts:
-        return "quads", count_hole_contrib(hole_cards, all_cards, "quads")
-    if 3 in counts and 2 in counts:
-        return "full_house", count_hole_contrib(hole_cards, all_cards, "full_house")
-    if max(suit_counts.values()) >= 5:
-        return "flush", count_hole_contrib(hole_cards, all_cards, "flush")
-    if is_straight(values):
-        return "straight", count_hole_contrib(hole_cards, all_cards, "straight")
-    if 3 in counts:
-        return "set", count_hole_contrib(hole_cards, all_cards, "set")
-    if counts.count(2) >= 2:
-        return "two_pair", count_hole_contrib(hole_cards, all_cards, "two_pair")
-    if 2 in counts:
-        return "pair", count_hole_contrib(hole_cards, all_cards, "pair")
-    return "high_card", 0
+    counts_sorted = sorted(rc.values(), reverse=True)
+    if counts_sorted[0] == 4:
+        return "quads"
+    if counts_sorted[0] == 3 and counts_sorted[1] == 2:
+        return "full_house"
+    if is_flush:
+        return "flush"
+    if _is_straight_from_values(uvals):
+        return "straight"
+    if counts_sorted[0] == 3:
+        return "set"
+    if counts_sorted[0] == 2 and counts_sorted[1] == 2:
+        return "two_pair"
+    if counts_sorted[0] == 2:
+        return "pair"
+    return "high_card"
 
-def count_hole_contrib(hole_cards, all_cards, made_hand):
-    """完成役にホールカードが何枚貢献しているかを数える"""
-    # 簡易版: 同じランクのカードが役に含まれていれば貢献とする
-    ranks_needed = set(c.rank for c in all_cards)
-    return sum(1 for c in hole_cards if c.rank in ranks_needed)
+def detect_made_hand(hole_cards, board_cards):
+    """
+    ベスト5枚で厳密に役を判定し、そのベスト5内に何枚ホールが入っているかで hc を数える。
+    戻り値は (hand_name, hole_contrib) で、既存の呼び出しに互換。
+    """
+    seven = hole_cards + board_cards
+    best5 = best5_from_seven(seven)
+    hand_name = classify5(best5)
 
-def is_straight(values):
+    # hc 枚数（ベスト5内に含まれるホールカード枚数）
+    best5_set = set(best5)
+    hole_contrib = sum(1 for c in hole_cards if c in best5_set)
+    hole_contrib = min(hole_contrib, 2)
+    return hand_name, hole_contrib
+
+# ============================================================
+# シフトフロップ本体（インターフェイスは現状維持）
+# ============================================================
+
+def is_straight(values):  # 互換用（外部で使っていないが念のため残す）
     unique = sorted(set(values), reverse=True)
     for i in range(len(unique) - 4):
         if unique[i] - unique[i + 4] == 4:
