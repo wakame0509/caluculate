@@ -46,78 +46,126 @@ def simulate_vs_random(my_hand, flop_cards, turn_cards, iterations=1000):
 
     return (wins + ties / 2) / iterations * 100
 
-def detect_made_hand(hole_cards, board_cards):
-    all_cards = hole_cards + board_cards
-    ranks = [c.rank for c in all_cards]
-    suits = [c.suit for c in all_cards]
-    values = sorted([convert_rank_to_value(c.rank) for c in all_cards], reverse=True)
+# ===== ここから：役判定のみ刷新 =====
+def _has_straight_from_values(values_iterable):
+    """値の集合（int）からストレートの有無を厳密判定。Aは14扱い、A-5ストレートにも対応。"""
+    u = sorted(set(int(v) for v in values_iterable))
+    if not u:
+        return False
+    # A(14) を 1 としても扱う（5ハイストレート）
+    if 14 in u:
+        u_with_wheel = u + [1]
+    else:
+        u_with_wheel = u[:]
 
-    rank_counts = {r: ranks.count(r) for r in set(ranks)}
-    suit_counts = {s: suits.count(s) for s in set(suits)}
-    counts = list(rank_counts.values())
-
-    suit_groups = {}
-    for c in all_cards:
-        suit_groups.setdefault(c.suit, []).append(convert_rank_to_value(c.rank))
-
-    for suited_vals in suit_groups.values():
-        if len(suited_vals) >= 5:
-            suited_vals = sorted(set(suited_vals), reverse=True)
-            for i in range(len(suited_vals) - 4):
-                if suited_vals[i] - suited_vals[i + 4] == 4:
-                    return ["straight_flush"]
-            if set([14, 2, 3, 4, 5]).issubset(set(suited_vals)):
-                return ["straight_flush"]
-
-    if 4 in counts:
-        return ["quads"]
-    if 3 in counts and 2 in counts:
-        return ["full_house"]
-    if max(suit_counts.values()) >= 5:
-        return ["flush"]
-    if is_straight(values):
-        return ["straight"]
-    if 3 in counts:
-        return ["set"]
-    if counts.count(2) >= 2:
-        return ["two_pair"]
-    if 2 in counts:
-        return ["pair"]
-    return ["high_card"]
-
-def is_straight(values):
-    unique = sorted(set(values), reverse=True)
-    for i in range(len(unique) - 4):
-        if unique[i] - unique[i + 4] == 4:
-            return True
-    if set([14, 2, 3, 4, 5]).issubset(set(values)):
-        return True
+    # 連続5個をチェック（昇順）
+    streak = 1
+    for i in range(1, len(u_with_wheel)):
+        if u_with_wheel[i] == u_with_wheel[i-1] + 1:
+            streak += 1
+            if streak >= 5:
+                return True
+        elif u_with_wheel[i] == u_with_wheel[i-1]:
+            continue
+        else:
+            streak = 1
     return False
 
-# --- 役に何枚ホールカードが絡んでいるかを判定 ---
+def detect_made_hand(hole_cards, board_cards):
+    """7枚（2+5）から実際の役を厳密に判定して、文字列を1要素リストで返す。"""
+    all_cards = hole_cards + board_cards
+
+    # ランク/スーツの集計
+    ranks = [c.rank for c in all_cards]
+    suits = [c.suit for c in all_cards]
+    rank_counts = {}
+    for r in ranks:
+        rank_counts[r] = rank_counts.get(r, 0) + 1
+    suit_counts = {}
+    for s in suits:
+        suit_counts[s] = suit_counts.get(s, 0) + 1
+
+    # 値（A=14）一覧
+    all_values = [convert_rank_to_value(c.rank) for c in all_cards]
+
+    # --- ストレートフラッシュ ---
+    for s, cnt in suit_counts.items():
+        if cnt >= 5:
+            suited_vals = [convert_rank_to_value(c.rank) for c in all_cards if c.suit == s]
+            if _has_straight_from_values(suited_vals):
+                return ["straight_flush"]
+
+    # --- フォーカード ---
+    if any(c == 4 for c in rank_counts.values()):
+        return ["quads"]
+
+    # --- フルハウス（トリップス2種 or トリップス+別ランクのペア） ---
+    trips = [r for r, c in rank_counts.items() if c >= 3]
+    pairs = [r for r, c in rank_counts.items() if c >= 2]
+    if trips and (len(trips) >= 2 or any(r != trips[0] for r in pairs)):
+        return ["full_house"]
+
+    # --- フラッシュ ---
+    if any(cnt >= 5 for cnt in suit_counts.values()):
+        return ["flush"]
+
+    # --- ストレート ---
+    if _has_straight_from_values(all_values):
+        return ["straight"]
+
+    # --- セット ---
+    if any(c >= 3 for c in rank_counts.values()):
+        return ["set"]
+
+    # --- ツーペア（ペア以上のランクが2種類以上。上位役は既に除外済み） ---
+    if len([r for r, c in rank_counts.items() if c >= 2]) >= 2:
+        return ["two_pair"]
+
+    # --- ペア ---
+    if any(c >= 2 for c in rank_counts.values()):
+        return ["pair"]
+
+    return ["high_card"]
+# ===== ここまで：役判定のみ刷新 =====
+
+# （is_straight は使わなくなりましたが、他所で参照していないため残しても動作に影響はありません）
+def is_straight(values):
+    # 互換のため残置（未使用）。厳密判定は detect_made_hand 内の _has_straight_from_values を使用。
+    return _has_straight_from_values(values)
+
+# --- 役に何枚ホールカードが絡んでいるかを判定（そのまま） ---
 def count_holecard_involvement(hole_cards, hand_rank, board_cards):
     hc_vals = [convert_rank_to_value(c.rank) for c in hole_cards]
     all_vals = [convert_rank_to_value(c.rank) for c in (hole_cards + board_cards)]
-    rank_counts = {v: all_vals.count(v) for v in set(all_vals)}
+    rank_counts_vals = {}
+    for v in all_vals:
+        rank_counts_vals[v] = rank_counts_vals.get(v, 0) + 1
 
     if hand_rank == "pair":
-        return sum(rank_counts[v] >= 2 for v in hc_vals)
+        return sum(rank_counts_vals.get(v, 0) >= 2 for v in hc_vals)
     if hand_rank == "two_pair":
-        return sum(rank_counts[v] >= 2 for v in hc_vals)
+        return sum(rank_counts_vals.get(v, 0) >= 2 for v in hc_vals)
     if hand_rank == "set":
-        return sum(rank_counts[v] >= 3 for v in hc_vals)
+        return sum(rank_counts_vals.get(v, 0) >= 3 for v in hc_vals)
     if hand_rank == "quads":
-        return sum(rank_counts[v] == 4 for v in hc_vals)
+        return sum(rank_counts_vals.get(v, 0) == 4 for v in hc_vals)
     if hand_rank == "full_house":
-        return sum(rank_counts[v] >= 2 for v in hc_vals)
+        return sum(rank_counts_vals.get(v, 0) >= 2 for v in hc_vals)
     if hand_rank in ["straight", "straight_flush"]:
         uniq = sorted(set(all_vals))
-        for i in range(len(uniq) - 4):
-            window = set(uniq[i:i+5])
-            if len(window) == 5:
-                return sum(v in window for v in hc_vals)
-        if set([14, 2, 3, 4, 5]).issubset(set(uniq)):
-            return sum(v in [14, 2, 3, 4, 5] for v in hc_vals)
+        windows = []
+        # Aを1として扱う
+        if 14 in uniq:
+            uniq_with_wheel = sorted(set(uniq + [1]))
+        else:
+            uniq_with_wheel = uniq[:]
+        # 連続窓を列挙して HC 関与数を見る
+        for i in range(len(uniq_with_wheel) - 4):
+            if uniq_with_wheel[i+4] - uniq_with_wheel[i] == 4 and len(set(uniq_with_wheel[i:i+5])) == 5:
+                windows.append(set(uniq_with_wheel[i:i+5]))
+        if windows:
+            return max(sum(v in w for v in hc_vals) for w in windows)
+        return 0
     if hand_rank in ["flush", "straight_flush"]:
         suits = [c.suit for c in (hole_cards + board_cards)]
         for s in set(suits):
@@ -155,7 +203,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
             hc_count = count_holecard_involvement(hole_cards, made_after[0], board4)
             features.append(f"newmade_{made_after[0]}_hc{hc_count}")
 
-                # --- 役が進化しなかった場合：ボード特徴を比較 ---
+        # --- 役が進化しなかった場合：ボード特徴を比較 ---
         else:
             feats_after = classify_flop_turn_pattern(flop_cards, turn_list[-1])
             new_feats = [f for f in feats_after if f not in feats_before]
@@ -170,6 +218,7 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
                 if is_overcard_turn(hole_cards, t):
                     features.append("newmade_overcard")
                     break
+
         # --- 結果を記録 ---
         results.append({
             'turn_card': ','.join([str(t) for t in turn_list]),
@@ -188,5 +237,6 @@ def simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_
     top10 = results_sorted[:10]
     bottom10 = results_sorted[-10:]
     return results_sorted, top10, bottom10
+
 def run_shift_turn(hand_str, flop_cards, static_winrate, trials_per_turn=1000):
     return simulate_shift_turn_exhaustive(hand_str, flop_cards, static_winrate, trials_per_turn)
