@@ -462,149 +462,157 @@ if "csv_data" in st.session_state and st.session_state["csv_data"]:
     )
 else:
     st.warning("CSVがまだ生成されていません。Shift計算を先に実行してください。")
+# analyze_shift_features.py
 import re
 import pandas as pd
 import streamlit as st
 
-made_roles = [
+# ====== 定義 ======
+MADE_ROLES = {
     "newmade_set", "newmade_straight", "newmade_flush", "newmade_full_house",
-    "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush"
-]
-excluded_features = {"newmade_rainbow", "newmade_two_tone", "newmade_monotone"}
-
-def make_buckets(start, end, step):
-    return [f"{v}%以上〜{v+step}%未満" for v in range(start, end, step)]
-
-BUCKETS_BOTH = ["-100%未満"] + make_buckets(-100, 100, 10) + ["100%以上"]
-
-def get_bucket(value: float) -> str:
-    if pd.isna(value):
-        return None
-    if value < -100:
-        return "-100%未満"
-    if value >= 100:
-        return "100%以上"
-    lower = int(value // 10) * 10
-    upper = lower + 10
-    return f"{lower}%以上〜{upper}%未満"
-
+    "newmade_two_pair", "newmade_pair", "newmade_quads", "newmade_straight_flush",
+}
+EXCLUDED_FEATURES = {"newmade_rainbow", "newmade_two_tone", "newmade_monotone"}
 ROLE_RE = re.compile(r'^(newmade_[a-z_]+?)(?:_hc([0-2]))?$')
 
-# ---------------- ここから置き換え ----------------
-def _split_items(cell) -> list:
-    """カンマ区切り/空を安全に分割し、前後空白を除去。"""
+def make_buckets(start: int, end: int, step: int):
+    return [f"{v}%以上〜{v+step}%未満" for v in range(start, end, step)]
+
+BUCKETS = ["-100%未満"] + make_buckets(-100, 100, 10) + ["100%以上"]
+
+def get_bucket(v) -> str | None:
+    try:
+        x = float(v)
+    except Exception:
+        return None
+    if pd.isna(x): return None
+    if x < -100:  return "-100%未満"
+    if x >= 100:  return "100%以上"
+    lo = int(x // 10) * 10
+    return f"{lo}%以上〜{lo+10}%未満"
+
+# ---- Features と Detail の両方から newmade_* を吸い上げる ----
+def _split_items(cell) -> list[str]:
     if cell is None or (isinstance(cell, float) and pd.isna(cell)):
         return []
-    # DataFrameに入るときにリスト文字列になっている可能性もケア
     s = str(cell).strip()
     if not s or s == "―":
         return []
-    # 角カッコで囲まれたリスト風文字列も一応ケア
     s = s.strip("[]")
     return [x.strip() for x in s.split(",") if x.strip()]
 
-def _collect_feature_like_items(row) -> list:
-    """
-    Features列とDetail列の両方から newmade_* を抽出して合体。
-    ShiftTurn/ShiftRiver の Detail は通常カードだが、newmade_ フィルタで除外される。
-    """
+def collect_newmade_items(row) -> list[str]:
     items = []
-    # from Features
-    if "Features" in row:
-        items += _split_items(row["Features"])
-    # from Detail（ShiftFlopで特徴がDetailにあるバックコンパチ対応）
-    if "Detail" in row:
-        items += _split_items(row["Detail"])
-    # newmade_* のみを残す
-    items = [it for it in items if str(it).startswith("newmade_")]
-    return items
-# ---------------- ここまで置き換え ----------------
+    if "Features" in row: items += _split_items(row["Features"])
+    if "Detail"   in row: items += _split_items(row["Detail"])  # 👈 ShiftFlopがDetailに出る旧CSV救済
+    return [it for it in items if str(it).startswith("newmade_")]
 
-def analyze_roles_and_features(df_all: pd.DataFrame):
+# ====== 集計 ======
+def analyze_roles_and_features(df: pd.DataFrame):
     role_rows, feat_rows = [], []
 
-    # 必須列（Featuresが無くてもOK、Detail fallbackで処理）
-    for col in ("Shift", "Winrate"):
-        if col not in df_all.columns:
-            return pd.DataFrame(), pd.DataFrame()
+    # 列名ゆらぎを一応吸収
+    if "Shift" not in df.columns or "Winrate" not in df.columns:
+        return pd.DataFrame(), pd.DataFrame()
 
-    for _, row in df_all.iterrows():
-        shift = row.get("Shift")
-        winrate = row.get("Winrate")
-
-        try:
-            shift = float(shift)
-            winrate = float(winrate)
-        except (TypeError, ValueError):
-            continue
-
-        bucket = get_bucket(shift)
+    for _, row in df.iterrows():
+        bucket = get_bucket(row.get("Shift"))
         if bucket is None:
             continue
+        try:
+            shift = float(row.get("Shift"))
+            winrate = float(row.get("Winrate"))
+        except Exception:
+            continue
 
-        # ←← ここで Features と Detail を合体して抽出
-        items = _collect_feature_like_items(row)
+        items = collect_newmade_items(row)
         if not items:
             continue
 
         for item in items:
-            if item in excluded_features:
+            if item in EXCLUDED_FEATURES:
                 continue
-
             m = ROLE_RE.match(item)
             if not m:
-                # 想定外（例：newmade_以外、誤フォーマット）はスキップ
                 continue
+            base, hc = m.group(1), m.group(2)  # hc は '0'|'1'|'2' or None
 
-            base = m.group(1)
-            hc = m.group(2)  # '0'|'1'|'2' or None
-
-            if base in made_roles:
-                # newmade_pair_hc2 は理論上不整合（そのストリートで新規にペア完成でHC2は起きない）
+            if base in MADE_ROLES:
+                # “新規にペア完成”で hc2 は理論上不整合なので除外
                 if base == "newmade_pair" and hc == "2":
                     continue
                 role_key = f"{base}_hc{hc}" if hc is not None else f"{base}_hcnone"
-                role_rows.append({
-                    "role_key": role_key,
-                    "role_base": base,
-                    "hc": ("none" if hc is None else hc),
-                    "bucket": bucket,
-                    "shift": shift,
-                    "winrate": winrate,
-                })
+                role_rows.append(
+                    {"role_key": role_key, "role_base": base, "hc": ("none" if hc is None else hc),
+                     "bucket": bucket, "shift": shift, "winrate": winrate}
+                )
             else:
-                feat_rows.append({
-                    "feature": base,
-                    "bucket": bucket,
-                    "shift": shift,
-                    "winrate": winrate,
-                })
+                feat_rows.append(
+                    {"feature": base, "bucket": bucket, "shift": shift, "winrate": winrate}
+                )
 
     df_role = pd.DataFrame(role_rows)
     df_feat = pd.DataFrame(feat_rows)
 
-    summary_roles = (
-        df_role.groupby(["role_key", "bucket"]).size().unstack(fill_value=0)
-        if not df_role.empty else pd.DataFrame()
-    )
+    # 役（hc別）
     if not df_role.empty:
+        summary_roles = df_role.groupby(["role_key", "bucket"]).size().unstack(fill_value=0)
         summary_roles["平均Shift"]   = df_role.groupby("role_key")["shift"].mean().round(2)
         summary_roles["標準偏差"]    = df_role.groupby("role_key")["shift"].std().round(2)
         summary_roles["平均Winrate"] = df_role.groupby("role_key")["winrate"].mean().round(2)
-        cols = [c for c in BUCKETS_BOTH if c in summary_roles.columns]
+        cols = [c for c in BUCKETS if c in summary_roles.columns]
         summary_roles = summary_roles.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_roles = summary_roles.sort_values("平均Shift", ascending=False)
+    else:
+        summary_roles = pd.DataFrame()
 
-    summary_feats = (
-        df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
-        if not df_feat.empty else pd.DataFrame()
-    )
+    # 特徴（hcなし）
     if not df_feat.empty:
+        summary_feats = df_feat.groupby(["feature", "bucket"]).size().unstack(fill_value=0)
         summary_feats["平均Shift"]   = df_feat.groupby("feature")["shift"].mean().round(2)
         summary_feats["標準偏差"]    = df_feat.groupby("feature")["shift"].std().round(2)
         summary_feats["平均Winrate"] = df_feat.groupby("feature")["winrate"].mean().round(2)
-        cols = [c for c in BUCKETS_BOTH if c in summary_feats.columns]
+        cols = [c for c in BUCKETS if c in summary_feats.columns]
         summary_feats = summary_feats.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
         summary_feats = summary_feats.sort_values("平均Shift", ascending=False)
+    else:
+        summary_feats = pd.DataFrame()
 
     return summary_roles, summary_feats
+
+# ====== UI ======
+st.set_page_config(page_title="特徴量別シフト集計（Features/Detail両対応）", layout="wide")
+st.title("特徴量別 勝率シフト集計（Features or Detail の newmade_* を集計）")
+
+files = st.file_uploader("Shift結果のCSVをアップロード（複数可）", type="csv", accept_multiple_files=True)
+
+if files:
+    df_all = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    st.success(f"{len(files)} ファイル, 合計 {len(df_all)} 行を読み込みました。")
+
+    roles, feats = analyze_roles_and_features(df_all)
+
+    if not roles.empty:
+        st.subheader("🟩 役（hc別）")
+        st.dataframe(roles)
+        st.download_button(
+            "📥 役（hc別）CSVを保存",
+            data=roles.to_csv(index=True, encoding="utf-8-sig"),
+            file_name="summary_roles_hc.csv",
+            mime="text/csv",
+        )
+
+    if not feats.empty:
+        st.subheader("🟦 特徴（hcなし）")
+        st.dataframe(feats)
+        st.download_button(
+            "📥 特徴CSVを保存",
+            data=feats.to_csv(index=True, encoding="utf-8-sig"),
+            file_name="summary_features.csv",
+            mime="text/csv",
+        )
+
+    if roles.empty and feats.empty:
+        st.info("newmade_* が見つかりませんでした（Features/Detailのどちらにも存在しない可能性があります）。")
+else:
+    st.caption("※ ShiftFlopで特徴が Detail 列に入っている古いCSVでも、そのまま集計できます。")
