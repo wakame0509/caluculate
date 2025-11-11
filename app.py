@@ -581,7 +581,6 @@ def analyze_roles_and_features(df: pd.DataFrame):
     return summary_roles, summary_feats
 
 # ====== UI ======
-st.set_page_config(page_title="特徴量別シフト集計（Features/Detail両対応）", layout="wide")
 st.title("特徴量別 勝率シフト集計（Features or Detail の newmade_* を集計）")
 
 files = st.file_uploader("Shift結果のCSVをアップロード（複数可）", type="csv", accept_multiple_files=True)
