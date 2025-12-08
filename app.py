@@ -619,10 +619,16 @@ else:
 
 # ============================================================
 #   役を hc0 / hc1 / hc2 の 3 グループに分けて集計する
+#   ＋ 全役まとめた "総合集計" を追加
 # ============================================================
 
 def analyze_by_hc_groups(df: pd.DataFrame):
+    """
+    役(newmade_*)を HC ごとに 3 分割して集計する。
+    さらに “すべてまとめた総合集計” も返す。
+    """
     hc_groups = {"hc0": [], "hc1": [], "hc2": []}
+    total_rows = []   # ← 全部まとめた総合集計用
 
     for _, row in df.iterrows():
         bucket = get_bucket(row.get("Shift"))
@@ -647,28 +653,30 @@ def analyze_by_hc_groups(df: pd.DataFrame):
 
             base, hc = m.group(1), m.group(2)
 
+            # 役だけ対象
             if base not in MADE_ROLES:
                 continue
+
+            # ペアの hc2 は除外
             if base == "newmade_pair" and hc == "2":
                 continue
 
-            if hc is None:
-                group = "hc0"
-            elif hc == "0":
+            # hc → グループ
+            if hc is None or hc == "0":
                 group = "hc0"
             elif hc == "1":
                 group = "hc1"
             else:
                 group = "hc2"
 
-            hc_groups[group].append({
-                "role": base,
-                "bucket": bucket,
-                "shift": shift,
-                "winrate": winrate,
-            })
+            rec = {"role": base, "bucket": bucket, "shift": shift, "winrate": winrate}
+
+            hc_groups[group].append(rec)
+            total_rows.append(rec)   # ← 総合集計に追加
 
     summaries = {}
+
+    # --- HCごと ---
     for key, rows in hc_groups.items():
         if not rows:
             summaries[key] = pd.DataFrame()
@@ -676,6 +684,7 @@ def analyze_by_hc_groups(df: pd.DataFrame):
 
         df_hc = pd.DataFrame(rows)
         summary = df_hc.groupby(["role", "bucket"]).size().unstack(fill_value=0)
+
         summary["平均Shift"]   = df_hc.groupby("role")["shift"].mean().round(2)
         summary["標準偏差"]    = df_hc.groupby("role")["shift"].std().round(2)
         summary["平均Winrate"] = df_hc.groupby("role")["winrate"].mean().round(2)
@@ -686,27 +695,62 @@ def analyze_by_hc_groups(df: pd.DataFrame):
 
         summaries[key] = summary
 
+    # --- 総合（役まとめ） ---
+    if total_rows:
+        df_total = pd.DataFrame(total_rows)
+
+        # バケット度数
+        summary_total = df_total.groupby("bucket").size().reindex(BUCKETS, fill_value=0)
+
+        # 平均・分散
+        mean_shift = df_total["shift"].mean().round(2)
+        std_shift  = df_total["shift"].std().round(2)
+        mean_wr    = df_total["winrate"].mean().round(2)
+
+        # 行として追加
+        summary_total = summary_total.to_frame(name="count")
+        summary_total.loc["平均Shift"] = mean_shift
+        summary_total.loc["標準偏差"] = std_shift
+        summary_total.loc["平均Winrate"] = mean_wr
+
+        summaries["total"] = summary_total
+    else:
+        summaries["total"] = pd.DataFrame()
+
     return summaries
 
 
-# ==========================
-#   後半（HC別集計）← 修正ここ
-# ==========================
-if files:   # ← 追加（df_all がない時に動かないようにした）
-    st.header("HC 別集計（役のみを hc0 / hc1 / hc2 に分離）")
+# ====== 追加：HC別 & 総合集計結果の表示 ======
+st.header("HC 別集計（役のみを hc0 / hc1 / hc2 に分離）")
 
-    hc_summaries = analyze_by_hc_groups(df_all)
+hc_summaries = analyze_by_hc_groups(df_all)
 
-    for hc_key, df_hc in hc_summaries.items():
-        st.subheader(f"◎ {hc_key} の役集計")
-        if df_hc.empty:
-            st.info(f"{hc_key} のデータがありません。")
-            continue
+# --- 総合（全部まとめ） ---
+st.subheader("◎ 総合（全役まとめ）")
+if hc_summaries["total"].empty:
+    st.info("全体集計のデータがありません。")
+else:
+    st.dataframe(hc_summaries["total"])
+    st.download_button(
+        "📥 総合CSV保存",
+        data=hc_summaries["total"].to_csv(encoding="utf-8-sig"),
+        file_name="summary_total.csv",
+        mime="text/csv",
+    )
 
-        st.dataframe(df_hc)
-        st.download_button(
-            f"📥 {hc_key} のCSV保存",
-            data=df_hc.to_csv(index=True, encoding='utf-8-sig'),
-            file_name=f"summary_roles_{hc_key}.csv",
-            mime="text/csv",
-        )
+# --- 各 HC グループ ---
+for hc_key in ["hc0", "hc1", "hc2"]:
+    df_hc = hc_summaries[hc_key]
+    st.subheader(f"◎ {hc_key} の役集計")
+
+    if df_hc.empty:
+        st.info(f"{hc_key} のデータがありません。")
+        continue
+
+    st.dataframe(df_hc)
+    st.download_button(
+        f"📥 {hc_key} のCSV保存",
+        data=df_hc.to_csv(index=True, encoding='utf-8-sig'),
+        file_name=f"summary_roles_{hc_key}.csv",
+        mime="text/csv",
+    )
