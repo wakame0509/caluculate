@@ -624,7 +624,6 @@ else:
 
 if "df_all" in locals():
 
-    # --- HC別集計の関数（あなたのコードそのまま） ---
     def analyze_by_hc_groups(df: pd.DataFrame):
         hc_groups = {"hc0": [], "hc1": [], "hc2": []}
         total_rows = []
@@ -654,7 +653,6 @@ if "df_all" in locals():
 
                 if base not in MADE_ROLES:
                     continue
-
                 if base == "newmade_pair" and hc == "2":
                     continue
 
@@ -672,22 +670,22 @@ if "df_all" in locals():
 
         summaries = {}
 
-        # --- HCごと ---
+        # --- HC ごと（bucket × count の形に修正） ---
         for key, rows in hc_groups.items():
             if not rows:
                 summaries[key] = pd.DataFrame()
                 continue
 
             df_hc = pd.DataFrame(rows)
-            summary = df_hc.groupby(["role", "bucket"]).size().unstack(fill_value=0)
 
-            summary["平均Shift"]   = df_hc.groupby("role")["shift"].mean().round(2)
-            summary["標準偏差"]    = df_hc.groupby("role")["shift"].std().round(2)
-            summary["平均Winrate"] = df_hc.groupby("role")["winrate"].mean().round(2)
+            # bucket 別件数
+            summary = df_hc.groupby("bucket").size().reindex(BUCKETS, fill_value=0)
+            summary = summary.to_frame(name="count")
 
-            cols = [c for c in BUCKETS if c in summary.columns]
-            summary = summary.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
-            summary = summary.sort_values("平均Shift", ascending=False)
+            # 平均系を最下行に追加
+            summary.loc["平均Shift"] = df_hc["shift"].mean().round(2)
+            summary.loc["標準偏差"] = df_hc["shift"].std().round(2)
+            summary.loc["平均Winrate"] = df_hc["winrate"].mean().round(2)
 
             summaries[key] = summary
 
@@ -726,7 +724,7 @@ if "df_all" in locals():
         mime="text/csv",
     )
 
-    # 各HC
+    # 各 HC
     for hc_key in ["hc0", "hc1", "hc2"]:
         df_hc = hc_summaries[hc_key]
         st.subheader(f"◎ {hc_key} の役集計")
@@ -739,6 +737,6 @@ if "df_all" in locals():
         st.download_button(
             f"📥 {hc_key} のCSV保存",
             data=df_hc.to_csv(index=True, encoding='utf-8-sig'),
-            file_name=f"summary_roles_{hc_key}.csv",
+            file_name=f"summary_{hc_key}.csv",
             mime="text/csv",
         )
