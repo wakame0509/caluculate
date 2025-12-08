@@ -615,3 +615,107 @@ if files:
         st.info("newmade_* が見つかりませんでした（Features/Detailのどちらにも存在しない可能性があります）。")
 else:
     st.caption("※ ShiftFlopで特徴が Detail 列に入っている古いCSVでも、そのまま集計できます。")
+# ============================================================
+#   役を hc0 / hc1 / hc2 の 3 グループに分けて集計する
+# ============================================================
+
+def analyze_by_hc_groups(df: pd.DataFrame):
+    """
+    役(newmade_*)をHCごとに3つに完全分割して集計する。
+    hc0 = hc0 + hcnone
+    hc1 = hc1
+    hc2 = hc2
+    """
+    hc_groups = {
+        "hc0": [],
+        "hc1": [],
+        "hc2": [],
+    }
+
+    for _, row in df.iterrows():
+        bucket = get_bucket(row.get("Shift"))
+        if bucket is None:
+            continue
+        try:
+            shift = float(row.get("Shift"))
+            winrate = float(row.get("Winrate"))
+        except Exception:
+            continue
+
+        # 役や特徴を抽出（Features + Detail）
+        items = collect_newmade_items(row)
+        if not items:
+            continue
+
+        for item in items:
+            if item in EXCLUDED_FEATURES:
+                continue
+            m = ROLE_RE.match(item)
+            if not m:
+                continue
+
+            base, hc = m.group(1), m.group(2)
+
+            # 役だけ対象（特徴は無視）
+            if base not in MADE_ROLES:
+                continue
+
+            # ペアの hc2 は理論上不正 → 除外
+            if base == "newmade_pair" and hc == "2":
+                continue
+
+            # hc をカテゴリへ振り分け
+            if hc is None:
+                group = "hc0"      # ← hcnone は hc0 として扱う（あなたの要望）
+            elif hc == "0":
+                group = "hc0"
+            elif hc == "1":
+                group = "hc1"
+            else:
+                group = "hc2"
+
+            hc_groups[group].append({
+                "role": base,
+                "bucket": bucket,
+                "shift": shift,
+                "winrate": winrate,
+            })
+
+    # --- 各 hc グループを度数分布に変換 ---
+    summaries = {}
+    for key, rows in hc_groups.items():
+        if not rows:
+            summaries[key] = pd.DataFrame()
+            continue
+
+        df_hc = pd.DataFrame(rows)
+        summary = df_hc.groupby(["role", "bucket"]).size().unstack(fill_value=0)
+        summary["平均Shift"]   = df_hc.groupby("role")["shift"].mean().round(2)
+        summary["標準偏差"]    = df_hc.groupby("role")["shift"].std().round(2)
+        summary["平均Winrate"] = df_hc.groupby("role")["winrate"].mean().round(2)
+
+        cols = [c for c in BUCKETS if c in summary.columns]
+        summary = summary.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
+        summary = summary.sort_values("平均Shift", ascending=False)
+
+        summaries[key] = summary
+
+    return summaries
+    # ====== 追加：HC別分析結果の表示 ======
+st.header("HC 別集計（役のみを hc0 / hc1 / hc2 に分離）")
+
+hc_summaries = analyze_by_hc_groups(df_all)
+
+for hc_key, df_hc in hc_summaries.items():
+    st.subheader(f"◎ {hc_key} の役集計")
+    if df_hc.empty:
+        st.info(f"{hc_key} のデータがありません。")
+        continue
+
+    st.dataframe(df_hc)
+    st.download_button(
+        f"📥 {hc_key} のCSV保存",
+        data=df_hc.to_csv(index=True, encoding='utf-8-sig'),
+        file_name=f"summary_roles_{hc_key}.csv",
+        mime="text/csv",
+    )
