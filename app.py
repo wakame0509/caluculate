@@ -553,13 +553,17 @@ def analyze_roles_and_features(df: pd.DataFrame):
     df_role = pd.DataFrame(role_rows)
     df_feat = pd.DataFrame(feat_rows)
 
-    if not df_role.empty:
+        if not df_role.empty:
         summary_roles = df_role.groupby(["role_key", "bucket"]).size().unstack(fill_value=0)
         summary_roles["平均Shift"]   = df_role.groupby("role_key")["shift"].mean().round(2)
         summary_roles["標準偏差"]    = df_role.groupby("role_key")["shift"].std().round(2)
         summary_roles["平均Winrate"] = df_role.groupby("role_key")["winrate"].mean().round(2)
+
+        # ★追加：Winrate の標準偏差
+        summary_roles["標準偏差_winrate"] = df_role.groupby("role_key")["winrate"].std().round(2)
+
         cols = [c for c in BUCKETS if c in summary_roles.columns]
-        summary_roles = summary_roles.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
+        summary_roles = summary_roles.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate", "標準偏差_winrate"])
         summary_roles = summary_roles.sort_values("平均Shift", ascending=False)
     else:
         summary_roles = pd.DataFrame()
@@ -569,14 +573,15 @@ def analyze_roles_and_features(df: pd.DataFrame):
         summary_feats["平均Shift"]   = df_feat.groupby("feature")["shift"].mean().round(2)
         summary_feats["標準偏差"]    = df_feat.groupby("feature")["shift"].std().round(2)
         summary_feats["平均Winrate"] = df_feat.groupby("feature")["winrate"].mean().round(2)
+
+        # ★追加：Winrate の標準偏差
+        summary_feats["標準偏差_winrate"] = df_feat.groupby("feature")["winrate"].std().round(2)
+
         cols = [c for c in BUCKETS if c in summary_feats.columns]
-        summary_feats = summary_feats.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
+        summary_feats = summary_feats.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate", "標準偏差_winrate"])
         summary_feats = summary_feats.sort_values("平均Shift", ascending=False)
     else:
         summary_feats = pd.DataFrame()
-
-    return summary_roles, summary_feats
-
 
 # ================================
 #   UI
