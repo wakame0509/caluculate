@@ -624,7 +624,18 @@ else:
 
 if "df_all" in locals():
 
-    def analyze_by_hc_groups(df: pd.DataFrame):
+    # --- UI：集計したい役を選ぶ ---
+    # MADE_ROLES は既に存在する前提
+    st.subheader("◎ 集計対象にする役を選択")
+    selected_roles = st.multiselect(
+        "集計に含める newmade_xxx の役",
+        MADE_ROLES,
+        default=MADE_ROLES  # デフォルトは全部選択
+    )
+
+
+    # --- HC別集計の関数（役フィルタ追加） ---
+    def analyze_by_hc_groups(df: pd.DataFrame, selected_roles):
         hc_groups = {"hc0": [], "hc1": [], "hc2": []}
         total_rows = []
 
@@ -651,11 +662,15 @@ if "df_all" in locals():
 
                 base, hc = m.group(1), m.group(2)
 
-                if base not in MADE_ROLES:
+                # ★ ここでフィルタ適用（選択した役だけ）
+                if base not in selected_roles:
                     continue
+
+                # newmade_pair の hc2 → 除外ルール維持
                 if base == "newmade_pair" and hc == "2":
                     continue
 
+                # HC分類
                 if hc is None or hc == "0":
                     group = "hc0"
                 elif hc == "1":
@@ -670,22 +685,22 @@ if "df_all" in locals():
 
         summaries = {}
 
-        # --- HC ごと（bucket × count の形に修正） ---
+        # --- HCごと ---
         for key, rows in hc_groups.items():
             if not rows:
                 summaries[key] = pd.DataFrame()
                 continue
 
             df_hc = pd.DataFrame(rows)
+            summary = df_hc.groupby(["role", "bucket"]).size().unstack(fill_value=0)
 
-            # bucket 別件数
-            summary = df_hc.groupby("bucket").size().reindex(BUCKETS, fill_value=0)
-            summary = summary.to_frame(name="count")
+            summary["平均Shift"]   = df_hc.groupby("role")["shift"].mean().round(2)
+            summary["標準偏差"]    = df_hc.groupby("role")["shift"].std().round(2)
+            summary["平均Winrate"] = df_hc.groupby("role")["winrate"].mean().round(2)
 
-            # 平均系を最下行に追加
-            summary.loc["平均Shift"] = df_hc["shift"].mean().round(2)
-            summary.loc["標準偏差"] = df_hc["shift"].std().round(2)
-            summary.loc["平均Winrate"] = df_hc["winrate"].mean().round(2)
+            cols = [c for c in BUCKETS if c in summary.columns]
+            summary = summary.reindex(columns=cols + ["平均Shift", "標準偏差", "平均Winrate"])
+            summary = summary.sort_values("平均Shift", ascending=False)
 
             summaries[key] = summary
 
@@ -694,14 +709,11 @@ if "df_all" in locals():
             df_total = pd.DataFrame(total_rows)
             summary_total = df_total.groupby("bucket").size().reindex(BUCKETS, fill_value=0)
 
-            mean_shift = df_total["shift"].mean().round(2)
-            std_shift  = df_total["shift"].std().round(2)
-            mean_wr    = df_total["winrate"].mean().round(2)
-
             summary_total = summary_total.to_frame(name="count")
-            summary_total.loc["平均Shift"] = mean_shift
-            summary_total.loc["標準偏差"] = std_shift
-            summary_total.loc["平均Winrate"] = mean_wr
+
+            summary_total.loc["平均Shift"]    = df_total["shift"].mean().round(2)
+            summary_total.loc["標準偏差"]     = df_total["shift"].std().round(2)
+            summary_total.loc["平均Winrate"] = df_total["winrate"].mean().round(2)
 
             summaries["total"] = summary_total
         else:
@@ -709,13 +721,14 @@ if "df_all" in locals():
 
         return summaries
 
-    # --- 表示 ---
-    st.header("HC 別集計（役のみを hc0 / hc1 / hc2 に分離）")
 
-    hc_summaries = analyze_by_hc_groups(df_all)
+    # --- 表示 ---
+    st.header("HC 別集計（選択した役のみを hc0 / hc1 / hc2 に分離）")
+
+    hc_summaries = analyze_by_hc_groups(df_all, selected_roles)
 
     # 総合
-    st.subheader("◎ 総合（全役まとめ）")
+    st.subheader("◎ 総合（選択した役の合計）")
     st.dataframe(hc_summaries["total"])
     st.download_button(
         "📥 総合CSV保存",
@@ -724,10 +737,10 @@ if "df_all" in locals():
         mime="text/csv",
     )
 
-    # 各 HC
+    # 各HC
     for hc_key in ["hc0", "hc1", "hc2"]:
         df_hc = hc_summaries[hc_key]
-        st.subheader(f"◎ {hc_key} の役集計")
+        st.subheader(f"◎ {hc_key} の役集計（選択した役のみ）")
 
         if df_hc.empty:
             st.info(f"{hc_key} のデータがありません。")
@@ -737,6 +750,6 @@ if "df_all" in locals():
         st.download_button(
             f"📥 {hc_key} のCSV保存",
             data=df_hc.to_csv(index=True, encoding='utf-8-sig'),
-            file_name=f"summary_{hc_key}.csv",
+            file_name=f"summary_roles_{hc_key}.csv",
             mime="text/csv",
         )
